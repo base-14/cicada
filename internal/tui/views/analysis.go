@@ -88,10 +88,12 @@ func (v *AnalysisView) View(width, height int) string {
 		if slug == "" {
 			slug = insights.LongestSession.UUID[:8]
 		}
-		fmt.Fprintf(&b, "  %s %s (%s)\n",
+		project := "/" + strings.ReplaceAll(strings.TrimPrefix(insights.LongestSession.ProjectPath, "-"), "-", "/")
+		fmt.Fprintf(&b, "  %s %s (%s · %s)\n",
 			labelStyle.Render("Longest Session:"),
 			valueStyle.Render(formatDuration(insights.LongestSession.Duration)),
 			slug,
+			project,
 		)
 	}
 	if insights.MostProductiveDay != "" {
