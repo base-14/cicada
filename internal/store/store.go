@@ -9,8 +9,9 @@ import (
 // Store holds all session metadata in memory with concurrent-safe access.
 type Store struct {
 	mu        sync.RWMutex
-	sessions  map[string]*model.SessionMeta // UUID -> meta
-	byProject map[string][]string           // project path -> []UUID
+	sessions  map[string]*model.SessionMeta   // UUID -> meta
+	byProject map[string][]string             // project path -> []UUID
+	details   map[string]*model.SessionDetail // UUID -> detail (lazy loaded)
 
 	scanMu      sync.RWMutex
 	scanScanned int
@@ -22,6 +23,7 @@ func New() *Store {
 	return &Store{
 		sessions:  make(map[string]*model.SessionMeta),
 		byProject: make(map[string][]string),
+		details:   make(map[string]*model.SessionDetail),
 	}
 }
 
@@ -126,6 +128,20 @@ func (s *Store) Analytics() *model.Analytics {
 
 	a.ActiveProjects = len(projectSet)
 	return a
+}
+
+// GetDetail returns a cached session detail by UUID, or nil if not cached.
+func (s *Store) GetDetail(uuid string) *model.SessionDetail {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.details[uuid]
+}
+
+// SetDetail caches a session detail by UUID.
+func (s *Store) SetDetail(uuid string, detail *model.SessionDetail) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.details[uuid] = detail
 }
 
 // SetScanProgress updates the background scan progress.
