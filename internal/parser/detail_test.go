@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 func TestExtractSessionDetail(t *testing.T) {

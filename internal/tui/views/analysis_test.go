@@ -6,8 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
 )
 
 func TestNewAnalysisView(t *testing.T) {
@@ -139,6 +139,88 @@ func TestAnalysisView_ScrollBoundsAtZero(t *testing.T) {
 	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
 	if view.scrollY != 0 {
 		t.Errorf("expected scrollY=0 (no negative via 'k'), got %d", view.scrollY)
+	}
+}
+
+func TestAnalysisView_TwoColumnLayout(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	yesterday := now.AddDate(0, 0, -1)
+
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "session-1", ProjectPath: "-test",
+		StartTime: now, EndTime: now.Add(time.Hour), Duration: time.Hour,
+		TokensIn: 10000, TokensOut: 5000,
+		Models:       map[string]int{"claude-opus-4-6": 5},
+		ToolUsage:    map[string]int{"Read": 10, "Edit": 5, "Bash": 3},
+		SkillsUsed:   map[string]int{},
+		CommandsUsed: map[string]int{},
+		FileOps:      map[string]int{},
+		GitBranches:  []string{"main"},
+		SubagentCount: 1, MessageCount: 20,
+	})
+	s.Add(&model.SessionMeta{
+		UUID: "u2", Slug: "session-2", ProjectPath: "-test",
+		StartTime: yesterday, EndTime: yesterday.Add(30 * time.Minute), Duration: 30 * time.Minute,
+		TokensIn: 5000, TokensOut: 2000,
+		Models:       map[string]int{"claude-sonnet-4-6": 3},
+		ToolUsage:    map[string]int{"Read": 5, "Write": 2},
+		SkillsUsed:   map[string]int{},
+		CommandsUsed: map[string]int{},
+		FileOps:      map[string]int{},
+		GitBranches:  []string{"main", "feat"},
+		SubagentCount: 0, MessageCount: 10,
+	})
+
+	view := NewAnalysisView(s)
+
+	// Wide terminal (140 cols) should produce two-column layout
+	wideContent := view.View(140, 60)
+	// Narrow terminal (80 cols) should produce single-column layout
+	narrowContent := view.View(80, 60)
+
+	// Two-column layout should have fewer lines than single-column
+	wideLines := strings.Split(wideContent, "\n")
+	narrowLines := strings.Split(narrowContent, "\n")
+
+	if len(wideLines) >= len(narrowLines) {
+		t.Errorf("expected two-column layout (%d lines) to be shorter than single-column (%d lines)",
+			len(wideLines), len(narrowLines))
+	}
+
+	// Both should still contain all key sections
+	for _, section := range []string{"Streaks", "Personal Bests", "Trends", "Heatmap", "Tools", "Models"} {
+		if !strings.Contains(wideContent, section) {
+			t.Errorf("two-column layout missing section: %s", section)
+		}
+	}
+}
+
+func TestAnalysisView_SingleColumnFallback(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "session-1", ProjectPath: "-test",
+		StartTime: now, EndTime: now.Add(time.Hour), Duration: time.Hour,
+		TokensIn: 10000, TokensOut: 5000,
+		Models:       map[string]int{"claude-opus-4-6": 5},
+		ToolUsage:    map[string]int{"Read": 10},
+		SkillsUsed:   map[string]int{},
+		CommandsUsed: map[string]int{},
+		FileOps:      map[string]int{},
+		GitBranches:  []string{"main"},
+		MessageCount: 10,
+	})
+
+	view := NewAnalysisView(s)
+	content := view.View(80, 60)
+
+	// All sections should be present in single-column fallback
+	for _, section := range []string{"Sessions", "Streaks", "Personal Bests", "Trends", "Heatmap", "Top Tools", "Models"} {
+		if !strings.Contains(content, section) {
+			t.Errorf("single-column fallback missing section: %s", section)
+		}
 	}
 }
 

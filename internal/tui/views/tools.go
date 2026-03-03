@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/store"
+	"github.com/base-14/cicada/internal/store"
 )
 
 // ToolRow holds display data for a tool.

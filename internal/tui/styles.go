@@ -20,7 +20,7 @@ type Theme struct {
 // DefaultTheme returns the default color theme.
 func DefaultTheme() Theme {
 	return Theme{
-		Primary:   "#7C3AED",
+		Primary:   "#00FFFF",
 		Secondary: "#06B6D4",
 		Accent:    "#F59E0B",
 		Muted:     "#6B7280",

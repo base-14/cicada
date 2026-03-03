@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/r/cicada/internal/parser"
+	"github.com/base-14/cicada/internal/parser"
 )
 
 // ScanMsgType identifies the type of scan progress message.

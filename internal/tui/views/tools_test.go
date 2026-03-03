@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
 )
 
 func TestNewToolsView(t *testing.T) {

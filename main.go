@@ -1,17 +1,28 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
-	"github.com/r/cicada/internal/tui"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui"
 )
 
+var version = "dev"
+
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("cicada", version)
+		return
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

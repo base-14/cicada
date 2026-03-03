@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Bar colors — gradient from cyan to purple.
-var barColors = []string{"#06B6D4", "#3B82F6", "#6366F1", "#7C3AED", "#9333EA"}
+// Bar colors — cyan-focused gradient.
+var barColors = []string{"#00FFFF", "#06B6D4", "#22D3EE", "#67E8F9", "#A5F3FC"}
 
 // BarItem represents a single bar in a bar chart.
 type BarItem struct {

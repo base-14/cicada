@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 // fileToolMappings maps file tool names to operation type categories.

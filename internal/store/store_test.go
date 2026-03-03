@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 func newTestMeta(uuid, slug, project string, start time.Time, tokensIn int64) *model.SessionMeta {

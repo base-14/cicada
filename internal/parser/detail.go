@@ -3,7 +3,7 @@ package parser
 import (
 	"fmt"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 // ExtractSessionDetail extracts full timeline and file activity from parsed messages.

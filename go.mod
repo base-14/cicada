@@ -1,4 +1,4 @@
-module github.com/r/cicada
+module github.com/base-14/cicada
 
 go 1.25.6
 

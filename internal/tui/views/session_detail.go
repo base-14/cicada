@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
 )
 
 var detailTabNames = []string{"Chat", "Overview", "Timeline", "Files", "Agents", "Tools"}

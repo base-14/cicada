@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/store"
-	"github.com/r/cicada/internal/tui/components"
+	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui/components"
 )
 
 // ProjectRow holds display data for a project.

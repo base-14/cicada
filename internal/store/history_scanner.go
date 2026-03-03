@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 type historyLine struct {

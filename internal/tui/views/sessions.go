@@ -7,9 +7,9 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
-	"github.com/r/cicada/internal/tui/components"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui/components"
 )
 
 // SessionsView shows a sortable list of all sessions.

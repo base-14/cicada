@@ -8,10 +8,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/r/cicada/internal/model"
-	"github.com/r/cicada/internal/store"
-	"github.com/r/cicada/internal/tui/components"
+	"github.com/base-14/cicada/internal/model"
+	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui/components"
 )
+
+// twoColumnMinWidth is the minimum terminal width for two-column layout.
+const twoColumnMinWidth = 120
 
 // AnalysisView shows the merged dashboard + analytics with feel-good stats.
 type AnalysisView struct {
@@ -45,6 +48,23 @@ func (v *AnalysisView) Update(msg tea.KeyMsg) {
 	}
 }
 
+// analysisStyles bundles styles used by rendering helpers.
+type analysisStyles struct {
+	subtitle lipgloss.Style
+	label    lipgloss.Style
+	value    lipgloss.Style
+	accent   lipgloss.Style
+}
+
+func newAnalysisStyles() analysisStyles {
+	return analysisStyles{
+		subtitle: lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4")),
+		label:    lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")),
+		value:    lipgloss.NewStyle().Foreground(lipgloss.Color("#F9FAFB")).Bold(true),
+		accent:   lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B")).Bold(true),
+	}
+}
+
 // View renders the analysis view.
 func (v *AnalysisView) View(width, height int) string {
 	analytics := v.store.Analytics()
@@ -55,78 +75,17 @@ func (v *AnalysisView) View(width, height int) string {
 	sessions := v.store.AllSessions()
 	history := v.store.HistoryStats()
 	insights := model.ComputeInsights(sessions, history)
+	styles := newAnalysisStyles()
 
-	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4"))
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
-	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#F9FAFB")).Bold(true)
-	accentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B")).Bold(true)
-
-	var b strings.Builder
-	b.WriteString("\n")
-
-	// Summary Stats
-	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s\n",
-		labelStyle.Render("Sessions:"), valueStyle.Render(fmt.Sprintf("%d", analytics.TotalSessions)),
-		labelStyle.Render("Tokens In:"), valueStyle.Render(formatTokensShort(analytics.TotalTokensIn)),
-		labelStyle.Render("Tokens Out:"), valueStyle.Render(formatTokensShort(analytics.TotalTokensOut)),
-		labelStyle.Render("Projects:"), valueStyle.Render(fmt.Sprintf("%d", analytics.ActiveProjects)),
-	)
-	b.WriteString("\n")
-
-	// Streaks
-	b.WriteString("  " + subtitleStyle.Render("Streaks") + "\n")
-	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
-		labelStyle.Render("Current Streak:"), accentStyle.Render(fmt.Sprintf("%d days", insights.CurrentStreak)),
-		labelStyle.Render("Longest Streak:"), accentStyle.Render(fmt.Sprintf("%d days", insights.LongestStreak)),
-		labelStyle.Render("Active Days:"), valueStyle.Render(fmt.Sprintf("%d", insights.ActiveDays)),
-	)
-	b.WriteString("\n")
-
-	// Personal Bests
-	b.WriteString("  " + subtitleStyle.Render("Personal Bests") + "\n")
-	if insights.LongestSession != nil {
-		slug := insights.LongestSession.Slug
-		if slug == "" {
-			slug = insights.LongestSession.UUID[:8]
+	// Find earliest session date
+	var earliest time.Time
+	for _, s := range sessions {
+		if !s.StartTime.IsZero() && (earliest.IsZero() || s.StartTime.Before(earliest)) {
+			earliest = s.StartTime
 		}
-		project := "/" + strings.ReplaceAll(strings.TrimPrefix(insights.LongestSession.ProjectPath, "-"), "-", "/")
-		fmt.Fprintf(&b, "  %s %s (%s · %s)\n",
-			labelStyle.Render("Longest Session:"),
-			valueStyle.Render(formatDuration(insights.LongestSession.Duration)),
-			slug,
-			project,
-		)
 	}
-	if insights.MostProductiveDay != "" {
-		fmt.Fprintf(&b, "  %s %s (%d sessions)\n",
-			labelStyle.Render("Most Productive Day:"),
-			valueStyle.Render(insights.MostProductiveDay),
-			insights.MostProductiveDayCount,
-		)
-	}
-	fmt.Fprintf(&b, "  %s %s\n",
-		labelStyle.Render("Busiest Hour:"),
-		valueStyle.Render(fmt.Sprintf("%02d:00", insights.BusiestHour)),
-	)
-	if insights.FavoriteTool != "" {
-		fmt.Fprintf(&b, "  %s %s (%d calls)\n",
-			labelStyle.Render("Favorite Tool:"),
-			accentStyle.Render(insights.FavoriteTool),
-			insights.FavoriteToolCount,
-		)
-	}
-	b.WriteString("\n")
 
-	// Trends
-	b.WriteString("  " + subtitleStyle.Render("Trends") + "\n")
-	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
-		labelStyle.Render("This Week:"), valueStyle.Render(fmt.Sprintf("%d sessions", insights.SessionsThisWeek)),
-		labelStyle.Render("Last Week:"), valueStyle.Render(fmt.Sprintf("%d sessions", insights.SessionsLastWeek)),
-		labelStyle.Render("Avg Duration:"), valueStyle.Render(formatDuration(insights.AvgDuration)),
-	)
-	b.WriteString("\n")
-
-	// Activity bar graph (sessions + history prompts)
+	// Build activity data (shared by both layouts)
 	activityByDate := make(map[string]int)
 	for date, count := range analytics.SessionsByDate {
 		activityByDate[date] = count
@@ -136,22 +95,8 @@ func (v *AnalysisView) View(width, height int) string {
 			activityByDate[date] += count
 		}
 	}
-	if len(activityByDate) > 0 {
-		b.WriteString("  " + subtitleStyle.Render("Activity (last 30 days)") + "\n")
-		sparkData := buildSparkData(activityByDate, 30)
-		graphWidth := width - 6
-		if graphWidth < 30 {
-			graphWidth = 30
-		}
-		graph := components.BarGraph(sparkData, graphWidth, 8)
-		for _, line := range strings.Split(graph, "\n") {
-			b.WriteString("  " + line + "\n")
-		}
-		b.WriteString("\n")
-	}
 
-	// Heatmap
-	b.WriteString("  " + subtitleStyle.Render("Activity Heatmap (day × hour)") + "\n")
+	// Build heatmap data (shared by both layouts)
 	heatmap := buildHeatmapFromSessions(sessions)
 	if history != nil {
 		for d := 0; d < 7; d++ {
@@ -160,64 +105,29 @@ func (v *AnalysisView) View(width, height int) string {
 			}
 		}
 	}
-	heatmapStr := components.Heatmap(heatmap)
-	for _, line := range strings.Split(heatmapStr, "\n") {
-		b.WriteString("  " + line + "\n")
-	}
-	b.WriteString("\n")
 
-	// Top Tools
-	if len(analytics.ToolsUsed) > 0 {
-		b.WriteString("  " + subtitleStyle.Render("Top Tools") + "\n")
-		topTools := topNToolItems(analytics.ToolsUsed, 10)
-		chartWidth := width - 4
-		b.WriteString("  " + strings.ReplaceAll(components.BarChart(topTools, chartWidth), "\n", "\n  ") + "\n\n")
-	}
+	var content string
+	header := renderSummaryHeader(analytics, earliest, styles)
 
-	// Models
-	if len(analytics.ModelsUsed) > 0 {
-		b.WriteString("  " + subtitleStyle.Render("Models") + "\n  ")
-		opus, sonnet, haiku, other := categorizeModelCounts(analytics.ModelsUsed)
-		total := opus + sonnet + haiku + other
-		if total > 0 {
-			if opus > 0 {
-				fmt.Fprintf(&b, "Opus %d%%  ", opus*100/total)
-			}
-			if sonnet > 0 {
-				fmt.Fprintf(&b, "Sonnet %d%%  ", sonnet*100/total)
-			}
-			if haiku > 0 {
-				fmt.Fprintf(&b, "Haiku %d%%  ", haiku*100/total)
-			}
-			if other > 0 {
-				fmt.Fprintf(&b, "Other %d%%  ", other*100/total)
-			}
-		}
-		b.WriteString("\n\n")
-	}
+	if width >= twoColumnMinWidth {
+		leftWidth := width/2 - 1
+		rightWidth := width - leftWidth - 2
 
-	// Work Mode
-	totalWork := analytics.WorkModeExplore + analytics.WorkModeBuild + analytics.WorkModeTest
-	if totalWork > 0 {
-		b.WriteString("  " + subtitleStyle.Render("Work Mode") + "\n")
-		fmt.Fprintf(&b, "  Exploration %d%%    Building %d%%    Testing %d%%\n\n",
-			analytics.WorkModeExplore*100/totalWork,
-			analytics.WorkModeBuild*100/totalWork,
-			analytics.WorkModeTest*100/totalWork,
-		)
-	}
+		leftCol := renderLeftColumn(insights, analytics, styles)
+		rightCol := renderRightColumn(analytics, activityByDate, heatmap, rightWidth, styles)
 
-	// Fun Stats
-	b.WriteString("  " + subtitleStyle.Render("Fun Stats") + "\n")
-	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s\n",
-		labelStyle.Render("Questions Asked:"), valueStyle.Render(fmt.Sprintf("%d", insights.TotalQuestions)),
-		labelStyle.Render("Tool Calls:"), valueStyle.Render(fmt.Sprintf("%d", insights.TotalToolCalls)),
-		labelStyle.Render("Unique Tools:"), valueStyle.Render(fmt.Sprintf("%d", insights.UniqueTools)),
-		labelStyle.Render("Git Branches:"), valueStyle.Render(fmt.Sprintf("%d", insights.UniqueBranches)),
-	)
+		leftStyled := lipgloss.NewStyle().Width(leftWidth).Render(leftCol)
+		rightStyled := lipgloss.NewStyle().Width(rightWidth).Render(rightCol)
+
+		columns := lipgloss.JoinHorizontal(lipgloss.Top, leftStyled, "  ", rightStyled)
+		content = header + "\n" + columns
+	} else {
+		content = header + "\n" +
+			renderLeftColumn(insights, analytics, styles) +
+			renderRightColumnContent(analytics, activityByDate, heatmap, width, styles)
+	}
 
 	// Apply scroll
-	content := b.String()
 	lines := strings.Split(content, "\n")
 	if v.scrollY >= len(lines) {
 		v.scrollY = max(0, len(lines)-1)
@@ -235,6 +145,179 @@ func (v *AnalysisView) View(width, height int) string {
 		return strings.Join(lines[v.scrollY:end], "\n")
 	}
 	return content
+}
+
+// renderSummaryHeader renders the full-width summary stats line.
+func renderSummaryHeader(analytics *model.Analytics, earliest time.Time, s analysisStyles) string {
+	var b strings.Builder
+	b.WriteString("\n")
+
+	sinceStr := ""
+	if !earliest.IsZero() {
+		sinceStr = earliest.Format("Jan 2006")
+	}
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s",
+		s.label.Render("Sessions:"), s.value.Render(fmt.Sprintf("%d", analytics.TotalSessions)),
+		s.label.Render("Tokens In:"), s.value.Render(formatTokensShort(analytics.TotalTokensIn)),
+		s.label.Render("Tokens Out:"), s.value.Render(formatTokensShort(analytics.TotalTokensOut)),
+		s.label.Render("Projects:"), s.value.Render(fmt.Sprintf("%d", analytics.ActiveProjects)),
+	)
+	if sinceStr != "" {
+		fmt.Fprintf(&b, "    %s %s", s.label.Render("Since:"), s.value.Render(sinceStr))
+	}
+	b.WriteString("\n")
+
+	return b.String()
+}
+
+// renderLeftColumn renders text-heavy stats: Streaks, Personal Bests, Trends, Work Mode, Fun Stats.
+func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s analysisStyles) string {
+	var b strings.Builder
+
+	// Streaks
+	b.WriteString("  " + s.subtitle.Render("Streaks") + "\n")
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
+		s.label.Render("Current Streak:"), s.accent.Render(fmt.Sprintf("%d days", insights.CurrentStreak)),
+		s.label.Render("Longest Streak:"), s.accent.Render(fmt.Sprintf("%d days", insights.LongestStreak)),
+		s.label.Render("Active Days:"), s.value.Render(fmt.Sprintf("%d", insights.ActiveDays)),
+	)
+	b.WriteString("\n")
+
+	// Personal Bests
+	b.WriteString("  " + s.subtitle.Render("Personal Bests") + "\n")
+	if insights.LongestSession != nil {
+		slug := insights.LongestSession.Slug
+		if slug == "" {
+			slug = insights.LongestSession.UUID[:8]
+		}
+		project := "/" + strings.ReplaceAll(strings.TrimPrefix(insights.LongestSession.ProjectPath, "-"), "-", "/")
+		fmt.Fprintf(&b, "  %s %s (%s · %s)\n",
+			s.label.Render("Longest Session:"),
+			s.value.Render(formatDuration(insights.LongestSession.Duration)),
+			slug,
+			project,
+		)
+	}
+	if insights.MostProductiveDay != "" {
+		fmt.Fprintf(&b, "  %s %s (%d sessions)\n",
+			s.label.Render("Most Productive Day:"),
+			s.value.Render(insights.MostProductiveDay),
+			insights.MostProductiveDayCount,
+		)
+	}
+	fmt.Fprintf(&b, "  %s %s\n",
+		s.label.Render("Busiest Hour:"),
+		s.value.Render(fmt.Sprintf("%02d:00", insights.BusiestHour)),
+	)
+	if insights.FavoriteTool != "" {
+		fmt.Fprintf(&b, "  %s %s (%d calls)\n",
+			s.label.Render("Favorite Tool:"),
+			s.accent.Render(insights.FavoriteTool),
+			insights.FavoriteToolCount,
+		)
+	}
+	b.WriteString("\n")
+
+	// Trends
+	b.WriteString("  " + s.subtitle.Render("Trends") + "\n")
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
+		s.label.Render("This Week:"), s.value.Render(fmt.Sprintf("%d sessions", insights.SessionsThisWeek)),
+		s.label.Render("Last Week:"), s.value.Render(fmt.Sprintf("%d sessions", insights.SessionsLastWeek)),
+		s.label.Render("Avg Duration:"), s.value.Render(formatDuration(insights.AvgDuration)),
+	)
+	b.WriteString("\n")
+
+	// Work Mode
+	totalWork := analytics.WorkModeExplore + analytics.WorkModeBuild + analytics.WorkModeTest
+	if totalWork > 0 {
+		b.WriteString("  " + s.subtitle.Render("Work Mode") + "\n")
+		fmt.Fprintf(&b, "  Exploration %d%%    Building %d%%    Testing %d%%\n\n",
+			analytics.WorkModeExplore*100/totalWork,
+			analytics.WorkModeBuild*100/totalWork,
+			analytics.WorkModeTest*100/totalWork,
+		)
+	}
+
+	// Fun Stats
+	b.WriteString("  " + s.subtitle.Render("Fun Stats") + "\n")
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s\n",
+		s.label.Render("Questions Asked:"), s.value.Render(fmt.Sprintf("%d", insights.TotalQuestions)),
+		s.label.Render("Tool Calls:"), s.value.Render(fmt.Sprintf("%d", insights.TotalToolCalls)),
+		s.label.Render("Unique Tools:"), s.value.Render(fmt.Sprintf("%d", insights.UniqueTools)),
+		s.label.Render("Git Branches:"), s.value.Render(fmt.Sprintf("%d", insights.UniqueBranches)),
+	)
+
+	return b.String()
+}
+
+// renderRightColumn renders visual components for two-column layout.
+func renderRightColumn(analytics *model.Analytics, activityByDate map[string]int, heatmap [7][24]int, width int, s analysisStyles) string {
+	return renderRightColumnContent(analytics, activityByDate, heatmap, width, s)
+}
+
+// renderRightColumnContent renders: Activity Bar Graph, Heatmap, Top Tools, Models.
+func renderRightColumnContent(analytics *model.Analytics, activityByDate map[string]int, heatmap [7][24]int, width int, s analysisStyles) string {
+	var b strings.Builder
+
+	// Activity bar graph
+	if len(activityByDate) > 0 {
+		b.WriteString("  " + s.subtitle.Render("Activity (last 30 days)") + "\n")
+		sparkData := buildSparkData(activityByDate, 30)
+		graphWidth := width - 6
+		if graphWidth < 30 {
+			graphWidth = 30
+		}
+		graph := components.BarGraph(sparkData, graphWidth, 4)
+		for _, line := range strings.Split(graph, "\n") {
+			b.WriteString("  " + line + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	// Heatmap
+	b.WriteString("  " + s.subtitle.Render("Activity Heatmap (day × hour)") + "\n")
+	heatmapStr := components.Heatmap(heatmap)
+	for _, line := range strings.Split(heatmapStr, "\n") {
+		b.WriteString("  " + line + "\n")
+	}
+	b.WriteString("\n")
+
+	// Top Tools
+	if len(analytics.ToolsUsed) > 0 {
+		b.WriteString("  " + s.subtitle.Render("Top Tools") + "\n")
+		topTools := topNToolItems(analytics.ToolsUsed, 10)
+		chartWidth := width - 4
+		b.WriteString("  " + strings.ReplaceAll(components.BarChart(topTools, chartWidth), "\n", "\n  ") + "\n\n")
+	}
+
+	// Models
+	if len(analytics.ModelsUsed) > 0 {
+		b.WriteString("  " + s.subtitle.Render("Models") + "\n  ")
+		type modelCount struct {
+			name  string
+			count int
+		}
+		var models []modelCount
+		total := 0
+		for name, count := range analytics.ModelsUsed {
+			models = append(models, modelCount{name, count})
+			total += count
+		}
+		sort.Slice(models, func(i, j int) bool {
+			return models[i].count > models[j].count
+		})
+		if total > 0 {
+			for i, m := range models {
+				if i > 0 {
+					b.WriteString("  ")
+				}
+				fmt.Fprintf(&b, "%s %d%%", s.value.Render(m.name), m.count*100/total)
+			}
+		}
+		b.WriteString("\n\n")
+	}
+
+	return b.String()
 }
 
 // buildSparkData returns session counts for the last n days, sorted by date.
@@ -269,24 +352,6 @@ func topNToolItems(toolsUsed map[string]int, n int) []components.BarItem {
 		items[i] = components.BarItem{Label: s.key, Value: s.val}
 	}
 	return items
-}
-
-// categorizeModelCounts buckets model usage into Opus, Sonnet, Haiku, and Other.
-func categorizeModelCounts(modelsUsed map[string]int) (opus, sonnet, haiku, other int) {
-	for name, count := range modelsUsed {
-		lower := strings.ToLower(name)
-		switch {
-		case strings.Contains(lower, "opus"):
-			opus += count
-		case strings.Contains(lower, "sonnet"):
-			sonnet += count
-		case strings.Contains(lower, "haiku"):
-			haiku += count
-		default:
-			other += count
-		}
-	}
-	return
 }
 
 // buildHeatmapFromSessions computes a [7][24]int matrix from session start times.

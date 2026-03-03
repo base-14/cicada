@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/r/cicada/internal/parser"
-	"github.com/r/cicada/internal/store"
-	"github.com/r/cicada/internal/tui/views"
+	"github.com/base-14/cicada/internal/parser"
+	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui/views"
 )
 
 var tabNames = []string{"Analysis", "Projects", "Sessions", "Agents", "Tools"}
@@ -273,7 +273,7 @@ func (a App) View() string {
 }
 
 func (a App) renderHelpOverlay() string {
-	help := `  cicada — Claude Code Session Analyzer
+	help := `  🦗 cicada — Claude Code Session Analyzer
 
   Navigation
     1-5            Switch view
@@ -312,7 +312,7 @@ func (a App) renderTabBar() string {
 			tabs = append(tabs, a.styles.TabInactive.Render(name))
 		}
 	}
-	title := a.styles.Title.Render("cicada")
+	title := a.styles.Title.Render("🦗")
 	return title + " " + strings.Join(tabs, "")
 }
 

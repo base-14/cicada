@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	"github.com/r/cicada/internal/model"
+	"github.com/base-14/cicada/internal/model"
 )
 
 // Store holds all session metadata in memory with concurrent-safe access.
