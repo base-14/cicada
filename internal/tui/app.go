@@ -41,10 +41,12 @@ type App struct {
 	analyticsView  *views.AnalyticsView
 	agentsView     *views.AgentsView
 	toolsView      *views.ToolsView
-	detailView     *views.SessionDetailView
-	showingDetail  bool
-	showingHelp    bool
-	projectsDir    string // path to ~/.claude/projects
+	detailView           *views.SessionDetailView
+	showingDetail        bool
+	projectDetailView    *views.ProjectDetailView
+	showingProjectDetail bool
+	showingHelp          bool
+	projectsDir          string // path to ~/.claude/projects
 }
 
 // NewApp creates a new App model. projectsDir is the path to ~/.claude/projects.
@@ -95,6 +97,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// When showing project detail view
+		if a.showingProjectDetail && a.projectDetailView != nil {
+			switch msg.Type {
+			case tea.KeyEsc:
+				a.showingProjectDetail = false
+				a.projectDetailView = nil
+				return a, nil
+			case tea.KeyCtrlC:
+				return a, tea.Quit
+			default:
+				a.projectDetailView.Update(msg)
+				return a, nil
+			}
+		}
+
 		switch msg.Type {
 		case tea.KeyTab:
 			a.activeTab = (a.activeTab + 1) % len(tabNames)
@@ -134,6 +151,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return a, nil
 		case tea.KeyEnter:
+			if a.activeTab == 1 {
+				a.openProjectDetail()
+			}
 			if a.activeTab == 2 {
 				a.openSessionDetail()
 			}
@@ -311,10 +331,25 @@ func (a *App) openSessionDetail() {
 	a.showingDetail = true
 }
 
+func (a *App) openProjectDetail() {
+	project := a.projectsView.SelectedProject()
+	if project == "" {
+		return
+	}
+	sessions := a.store.SessionsByProject(project)
+	a.projectDetailView = views.NewProjectDetailView(project, sessions)
+	a.showingProjectDetail = true
+}
+
 func (a App) renderContent() string {
 	// Show detail view when drilling in from sessions
 	if a.showingDetail && a.detailView != nil && a.activeTab == 2 {
 		return a.detailView.View(a.width, a.height-4)
+	}
+
+	// Show project detail view when drilling in from projects
+	if a.showingProjectDetail && a.projectDetailView != nil && a.activeTab == 1 {
+		return a.projectDetailView.View(a.width, a.height-4)
 	}
 
 	switch a.activeTab {

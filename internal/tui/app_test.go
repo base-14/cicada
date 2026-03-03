@@ -3,8 +3,10 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/r/cicada/internal/model"
 	"github.com/r/cicada/internal/store"
 )
 
@@ -202,5 +204,65 @@ func TestApp_ScanComplete(t *testing.T) {
 
 	if !app.scanDone {
 		t.Error("expected scanDone to be true")
+	}
+}
+
+func TestApp_ProjectDetailDrillIn(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "s1", ProjectPath: "-Users-r-work-proj1",
+		StartTime: now, EndTime: now.Add(time.Minute),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	app := NewApp(s, "/tmp/test")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 1
+	// Trigger View to populate lastRows
+	app.View()
+	// Press Enter to open project detail
+	result, _ := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = result.(App)
+
+	if !app.showingProjectDetail {
+		t.Error("expected showingProjectDetail to be true after Enter on projects tab")
+	}
+	if app.projectDetailView == nil {
+		t.Error("expected projectDetailView to be non-nil")
+	}
+}
+
+func TestApp_ProjectDetailEscReturns(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "s1", ProjectPath: "-Users-r-work-proj1",
+		StartTime: now, EndTime: now.Add(time.Minute),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	app := NewApp(s, "/tmp/test")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 1
+	app.View()
+	result, _ := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = result.(App)
+
+	// Press Esc to close
+	result, _ = app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	app = result.(App)
+
+	if app.showingProjectDetail {
+		t.Error("expected showingProjectDetail=false after Esc")
+	}
+	if app.projectDetailView != nil {
+		t.Error("expected projectDetailView=nil after Esc")
 	}
 }
