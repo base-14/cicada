@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r/cicada/internal/store"
 	"github.com/r/cicada/internal/tui/components"
+	"github.com/r/cicada/internal/tui/views"
 )
 
 var tabNames = []string{"Dashboard", "Projects", "Sessions", "Analytics", "Agents", "Tools"}
@@ -25,22 +26,24 @@ type ScanCompleteMsg struct{}
 
 // App is the root Bubbletea model.
 type App struct {
-	store       *store.Store
-	styles      Styles
-	activeTab   int
-	width       int
-	height      int
-	scanScanned int
-	scanTotal   int
-	scanDone    bool
+	store        *store.Store
+	styles       Styles
+	activeTab    int
+	width        int
+	height       int
+	scanScanned  int
+	scanTotal    int
+	scanDone     bool
+	projectsView *views.ProjectsView
 }
 
 // NewApp creates a new App model.
 func NewApp(s *store.Store) App {
 	theme := DefaultTheme()
 	return App{
-		store:  s,
-		styles: NewStyles(theme),
+		store:        s,
+		styles:       NewStyles(theme),
+		projectsView: views.NewProjectsView(s),
 	}
 }
 
@@ -134,6 +137,8 @@ func (a App) renderContent() string {
 	switch a.activeTab {
 	case 0:
 		return a.renderDashboard()
+	case 1:
+		return a.projectsView.View(a.width, a.height-4)
 	default:
 		return fmt.Sprintf("  %s view — coming soon", tabNames[a.activeTab])
 	}
