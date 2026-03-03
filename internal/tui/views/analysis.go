@@ -2,7 +2,9 @@ package views
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -216,6 +218,58 @@ func (v *AnalysisView) View(width, height int) string {
 		return strings.Join(lines[v.scrollY:end], "\n")
 	}
 	return content
+}
+
+// buildSparkData returns session counts for the last n days, sorted by date.
+func buildSparkData(sessionsByDate map[string]int, days int) []int {
+	now := time.Now()
+	data := make([]int, days)
+	for i := range days {
+		date := now.AddDate(0, 0, -(days-1-i)).Format("2006-01-02")
+		data[i] = sessionsByDate[date]
+	}
+	return data
+}
+
+// topNToolItems returns the top n tools by usage as BarItems.
+func topNToolItems(toolsUsed map[string]int, n int) []components.BarItem {
+	type kv struct {
+		key string
+		val int
+	}
+	var sorted []kv
+	for k, v := range toolsUsed {
+		sorted = append(sorted, kv{k, v})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].val > sorted[j].val
+	})
+	if len(sorted) > n {
+		sorted = sorted[:n]
+	}
+	items := make([]components.BarItem, len(sorted))
+	for i, s := range sorted {
+		items[i] = components.BarItem{Label: s.key, Value: s.val}
+	}
+	return items
+}
+
+// categorizeModelCounts buckets model usage into Opus, Sonnet, Haiku, and Other.
+func categorizeModelCounts(modelsUsed map[string]int) (opus, sonnet, haiku, other int) {
+	for name, count := range modelsUsed {
+		lower := strings.ToLower(name)
+		switch {
+		case strings.Contains(lower, "opus"):
+			opus += count
+		case strings.Contains(lower, "sonnet"):
+			sonnet += count
+		case strings.Contains(lower, "haiku"):
+			haiku += count
+		default:
+			other += count
+		}
+	}
+	return
 }
 
 // buildHeatmapFromSessions computes a [7][24]int matrix from session start times.
