@@ -23,6 +23,7 @@ type ProjectsView struct {
 	store    *store.Store
 	selected int
 	filter   *components.Filter
+	lastRows []ProjectRow
 }
 
 // NewProjectsView creates a new ProjectsView.
@@ -60,6 +61,19 @@ func (v *ProjectsView) Update(msg tea.KeyMsg) {
 // FilterActive returns true if the filter input is active.
 func (v *ProjectsView) FilterActive() bool {
 	return v.filter.Active
+}
+
+// SelectedProject returns the Path of the currently selected project,
+// or "" if no projects are available.
+func (v *ProjectsView) SelectedProject() string {
+	if len(v.lastRows) == 0 {
+		return ""
+	}
+	idx := v.selected
+	if idx >= len(v.lastRows) {
+		idx = len(v.lastRows) - 1
+	}
+	return v.lastRows[idx].Path
 }
 
 // View renders the projects list.
@@ -100,6 +114,8 @@ func (v *ProjectsView) View(width, height int) string {
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].LastActive > rows[j].LastActive
 	})
+
+	v.lastRows = rows
 
 	// Clamp selected
 	if v.selected >= len(rows) && len(rows) > 0 {
