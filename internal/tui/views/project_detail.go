@@ -269,11 +269,15 @@ func (v *ProjectDetailView) renderActivity(width int) string {
 	if len(sessionsByDate) > 0 {
 		b.WriteString("  Sessions (last 30 days)\n")
 		sparkData := buildSparkData(sessionsByDate, 30)
-		sparkWidth := width - 4
-		if sparkWidth < 10 {
-			sparkWidth = 10
+		graphWidth := width - 6
+		if graphWidth < 30 {
+			graphWidth = 30
 		}
-		b.WriteString("  " + components.Sparkline(sparkData, sparkWidth) + "\n\n")
+		graph := components.BarGraph(sparkData, graphWidth, 8)
+		for _, line := range strings.Split(graph, "\n") {
+			b.WriteString("  " + line + "\n")
+		}
+		b.WriteString("\n")
 	}
 
 	var heatmap [7][24]int

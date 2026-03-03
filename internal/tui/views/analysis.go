@@ -125,15 +125,19 @@ func (v *AnalysisView) View(width, height int) string {
 	)
 	b.WriteString("\n")
 
-	// Sparkline
+	// Sessions bar graph
 	if len(analytics.SessionsByDate) > 0 {
 		b.WriteString("  " + subtitleStyle.Render("Sessions (last 30 days)") + "\n")
 		sparkData := buildSparkData(analytics.SessionsByDate, 30)
-		sparkWidth := width - 4
-		if sparkWidth < 10 {
-			sparkWidth = 10
+		graphWidth := width - 6
+		if graphWidth < 30 {
+			graphWidth = 30
 		}
-		b.WriteString("  " + components.Sparkline(sparkData, sparkWidth) + "\n\n")
+		graph := components.BarGraph(sparkData, graphWidth, 8)
+		for _, line := range strings.Split(graph, "\n") {
+			b.WriteString("  " + line + "\n")
+		}
+		b.WriteString("\n")
 	}
 
 	// Heatmap

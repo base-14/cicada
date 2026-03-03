@@ -62,7 +62,11 @@ func TestHeatmap_IntensityBlocks(t *testing.T) {
 
 	result := Heatmap(data)
 	// Should contain block characters for non-zero values
-	if !strings.ContainsAny(result, "░▒▓█") {
-		t.Error("expected intensity block characters in output")
+	if !strings.Contains(result, "██") {
+		t.Error("expected monochrome block characters in output")
+	}
+	// Zero cells should show dots
+	if !strings.Contains(result, "··") {
+		t.Error("expected dot markers for zero cells")
 	}
 }

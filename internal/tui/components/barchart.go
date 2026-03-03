@@ -34,6 +34,9 @@ func BarChart(items []BarItem, maxWidth int) string {
 	}
 
 	barWidth := maxWidth - maxLabel - 10
+	if barWidth > 40 {
+		barWidth = 40
+	}
 	if barWidth < 10 {
 		barWidth = 10
 	}
