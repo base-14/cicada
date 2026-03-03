@@ -10,7 +10,7 @@ import (
 	"github.com/r/cicada/internal/store"
 )
 
-var detailTabNames = []string{"Overview", "Timeline", "Files", "Agents", "Tools"}
+var detailTabNames = []string{"Chat", "Overview", "Timeline", "Files", "Agents", "Tools"}
 
 // SessionDetailView shows detailed information about a single session.
 type SessionDetailView struct {
@@ -87,14 +87,16 @@ func (v *SessionDetailView) View(width, height int) string {
 	var content string
 	switch v.activeTab {
 	case 0:
-		content = v.renderOverview(width)
+		content = v.renderChat(width)
 	case 1:
-		content = v.renderTimeline(width, height-6)
+		content = v.renderOverview(width)
 	case 2:
-		content = v.renderFiles(width, height-6)
+		content = v.renderTimeline(width, height-6)
 	case 3:
-		content = v.renderAgents(width)
+		content = v.renderFiles(width, height-6)
 	case 4:
+		content = v.renderAgents(width)
+	case 5:
 		content = v.renderTools(width)
 	}
 
@@ -274,6 +276,66 @@ func (v *SessionDetailView) renderTools(width int) string {
 	}
 
 	return b.String()
+}
+
+func (v *SessionDetailView) renderChat(width int) string {
+	if v.detail == nil || len(v.detail.ChatMessages) == 0 {
+		return "  No chat messages."
+	}
+
+	contentWidth := width - 6
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+
+	var b strings.Builder
+	for _, msg := range v.detail.ChatMessages {
+		switch msg.Role {
+		case "user":
+			b.WriteString("\n  ▶ You:\n")
+			for _, line := range wrapText(msg.Content, contentWidth) {
+				b.WriteString("    " + line + "\n")
+			}
+		case "assistant":
+			b.WriteString("\n  ◀ Assistant:\n")
+			for _, line := range wrapText(msg.Content, contentWidth) {
+				b.WriteString("    " + line + "\n")
+			}
+		case "tool":
+			b.WriteString("    ⚙ " + msg.Content + "\n")
+		}
+	}
+
+	return b.String()
+}
+
+func wrapText(s string, width int) []string {
+	if width <= 0 {
+		return []string{s}
+	}
+	var lines []string
+	for _, paragraph := range strings.Split(s, "\n") {
+		if paragraph == "" {
+			lines = append(lines, "")
+			continue
+		}
+		words := strings.Fields(paragraph)
+		if len(words) == 0 {
+			lines = append(lines, "")
+			continue
+		}
+		current := words[0]
+		for _, word := range words[1:] {
+			if len(current)+1+len(word) > width {
+				lines = append(lines, current)
+				current = word
+			} else {
+				current += " " + word
+			}
+		}
+		lines = append(lines, current)
+	}
+	return lines
 }
 
 func max(a, b int) int {

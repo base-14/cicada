@@ -31,6 +31,15 @@ func newTestDetail() (*model.SessionMeta, *model.SessionDetail) {
 
 	detail := &model.SessionDetail{
 		Meta: meta,
+		ChatMessages: []model.ChatMessage{
+			{Role: "user", Content: "Fix the login bug please", Timestamp: now.Add(-time.Hour)},
+			{Role: "assistant", Content: "I'll look at the login code and fix it.", Timestamp: now.Add(-55 * time.Minute)},
+			{Role: "tool", Content: "Read → /work/login.go", ToolName: "Read", Timestamp: now.Add(-55 * time.Minute)},
+			{Role: "tool", Content: "Edit → /work/login.go", ToolName: "Edit", Timestamp: now.Add(-50 * time.Minute)},
+			{Role: "assistant", Content: "I've fixed the login bug.", Timestamp: now.Add(-50 * time.Minute)},
+			{Role: "user", Content: "Run the tests", Timestamp: now.Add(-45 * time.Minute)},
+			{Role: "tool", Content: "Bash", ToolName: "Bash", Timestamp: now.Add(-40 * time.Minute)},
+		},
 		Timeline: []model.TimelineEvent{
 			{Timestamp: now.Add(-time.Hour), Type: "user", Content: "Fix the login bug please"},
 			{Timestamp: now.Add(-55 * time.Minute), Type: "tool_use", ToolName: "Read", Content: "/work/login.go"},
@@ -66,6 +75,8 @@ func TestSessionDetailView_OverviewTab(t *testing.T) {
 	s := store.New()
 	meta, detail := newTestDetail()
 	view := NewSessionDetailView(s, meta, detail)
+	// Navigate right once to reach Overview (index 1)
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	content := view.View(100, 30)
 
 	if content == "" {
@@ -90,7 +101,8 @@ func TestSessionDetailView_TimelineTab(t *testing.T) {
 	s := store.New()
 	meta, detail := newTestDetail()
 	view := NewSessionDetailView(s, meta, detail)
-	// Switch to timeline tab
+	// Switch to timeline tab (index 2)
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	content := view.View(100, 30)
 
@@ -109,7 +121,8 @@ func TestSessionDetailView_FilesTab(t *testing.T) {
 	s := store.New()
 	meta, detail := newTestDetail()
 	view := NewSessionDetailView(s, meta, detail)
-	// Switch to files tab (index 2)
+	// Switch to files tab (index 3)
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	content := view.View(100, 30)
@@ -126,7 +139,8 @@ func TestSessionDetailView_AgentsTab(t *testing.T) {
 	s := store.New()
 	meta, detail := newTestDetail()
 	view := NewSessionDetailView(s, meta, detail)
-	// Switch to agents tab (index 3)
+	// Switch to agents tab (index 4)
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
 	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
 	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
 	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
@@ -144,8 +158,8 @@ func TestSessionDetailView_ToolsTab(t *testing.T) {
 	s := store.New()
 	meta, detail := newTestDetail()
 	view := NewSessionDetailView(s, meta, detail)
-	// Switch to tools tab (index 4)
-	for i := 0; i < 4; i++ {
+	// Switch to tools tab (index 5)
+	for i := 0; i < 5; i++ {
 		view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	}
 	content := view.View(100, 30)
@@ -168,14 +182,54 @@ func TestSessionDetailView_TabWrapping(t *testing.T) {
 
 	// Go left from tab 0 should wrap to last tab
 	view.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if view.activeTab != 4 {
-		t.Errorf("expected tab 4 after left from 0, got %d", view.activeTab)
+	if view.activeTab != 5 {
+		t.Errorf("expected tab 5 after left from 0, got %d", view.activeTab)
 	}
 
 	// Go right from last tab should wrap to 0
 	view.Update(tea.KeyMsg{Type: tea.KeyRight})
 	if view.activeTab != 0 {
-		t.Errorf("expected tab 0 after right from 4, got %d", view.activeTab)
+		t.Errorf("expected tab 0 after right from 5, got %d", view.activeTab)
+	}
+}
+
+func TestSessionDetailView_ChatTab(t *testing.T) {
+	s := store.New()
+	meta, detail := newTestDetail()
+	view := NewSessionDetailView(s, meta, detail)
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "Chat") {
+		t.Error("expected 'Chat' tab label")
+	}
+	if !strings.Contains(content, "Fix the login bug") {
+		t.Error("expected user message in chat")
+	}
+	if !strings.Contains(content, "▶ You:") {
+		t.Error("expected user role marker")
+	}
+	if !strings.Contains(content, "◀ Assistant:") {
+		t.Error("expected assistant role marker")
+	}
+	if !strings.Contains(content, "⚙") {
+		t.Error("expected tool marker")
+	}
+}
+
+func TestSessionDetailView_ChatTab_Empty(t *testing.T) {
+	s := store.New()
+	meta := &model.SessionMeta{
+		UUID: "empty", Slug: "empty-session",
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{},
+	}
+	detail := &model.SessionDetail{Meta: meta}
+	view := NewSessionDetailView(s, meta, detail)
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "No chat messages") {
+		t.Error("expected empty state message")
 	}
 }
 
