@@ -53,7 +53,8 @@ func (v *AnalysisView) View(width, height int) string {
 	}
 
 	sessions := v.store.AllSessions()
-	insights := model.ComputeInsights(sessions, nil)
+	history := v.store.HistoryStats()
+	insights := model.ComputeInsights(sessions, history)
 
 	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4"))
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
@@ -125,10 +126,19 @@ func (v *AnalysisView) View(width, height int) string {
 	)
 	b.WriteString("\n")
 
-	// Sessions bar graph
-	if len(analytics.SessionsByDate) > 0 {
-		b.WriteString("  " + subtitleStyle.Render("Sessions (last 30 days)") + "\n")
-		sparkData := buildSparkData(analytics.SessionsByDate, 30)
+	// Activity bar graph (sessions + history prompts)
+	activityByDate := make(map[string]int)
+	for date, count := range analytics.SessionsByDate {
+		activityByDate[date] = count
+	}
+	if history != nil {
+		for date, count := range history.PromptsByDate {
+			activityByDate[date] += count
+		}
+	}
+	if len(activityByDate) > 0 {
+		b.WriteString("  " + subtitleStyle.Render("Activity (last 30 days)") + "\n")
+		sparkData := buildSparkData(activityByDate, 30)
 		graphWidth := width - 6
 		if graphWidth < 30 {
 			graphWidth = 30
@@ -143,6 +153,13 @@ func (v *AnalysisView) View(width, height int) string {
 	// Heatmap
 	b.WriteString("  " + subtitleStyle.Render("Activity Heatmap (day × hour)") + "\n")
 	heatmap := buildHeatmapFromSessions(sessions)
+	if history != nil {
+		for d := 0; d < 7; d++ {
+			for h := 0; h < 24; h++ {
+				heatmap[d][h] += history.Heatmap[d][h]
+			}
+		}
+	}
 	heatmapStr := components.Heatmap(heatmap)
 	for _, line := range strings.Split(heatmapStr, "\n") {
 		b.WriteString("  " + line + "\n")

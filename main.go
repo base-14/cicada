@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/r/cicada/internal/model"
 	"github.com/r/cicada/internal/store"
 	"github.com/r/cicada/internal/tui"
 )
@@ -39,6 +40,18 @@ func main() {
 				return
 			}
 		}
+	}()
+
+	// Start background history scanner
+	go func() {
+		historyPath := filepath.Join(homeDir, ".claude", "history.jsonl")
+		entries, err := store.ScanHistory(historyPath)
+		if err != nil {
+			return
+		}
+		stats := model.ComputeHistoryStats(entries)
+		st.SetHistoryStats(&stats)
+		p.Send(tui.HistoryScanCompleteMsg{Count: stats.TotalPrompts})
 	}()
 
 	if _, err := p.Run(); err != nil {

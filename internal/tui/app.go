@@ -23,6 +23,9 @@ type ScanBatchMsg struct {
 // ScanCompleteMsg is sent when the background scan finishes.
 type ScanCompleteMsg struct{}
 
+// HistoryScanCompleteMsg is sent when history.jsonl scanning finishes.
+type HistoryScanCompleteMsg struct{ Count int }
+
 // App is the root Bubbletea model.
 type App struct {
 	store          *store.Store
@@ -33,6 +36,7 @@ type App struct {
 	scanScanned    int
 	scanTotal      int
 	scanDone       bool
+	historyCount   int
 	projectsView   *views.ProjectsView
 	sessionsView   *views.SessionsView
 	analysisView   *views.AnalysisView
@@ -230,6 +234,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ScanCompleteMsg:
 		a.scanDone = true
 		return a, nil
+
+	case HistoryScanCompleteMsg:
+		a.historyCount = msg.Count
+		return a, nil
 	}
 
 	return a, nil
@@ -372,7 +380,11 @@ func (a App) renderContent() string {
 func (a App) renderStatusBar() string {
 	var status string
 	if a.scanDone {
-		status = fmt.Sprintf("Ready — %d sessions indexed", a.scanScanned)
+		if a.historyCount > 0 {
+			status = fmt.Sprintf("Ready — %d sessions, %d prompts indexed", a.scanScanned, a.historyCount)
+		} else {
+			status = fmt.Sprintf("Ready — %d sessions indexed", a.scanScanned)
+		}
 	} else if a.scanTotal > 0 {
 		status = fmt.Sprintf("Scanning... %d/%d sessions", a.scanScanned, a.scanTotal)
 	} else {
