@@ -95,40 +95,99 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyShiftTab:
 			a.activeTab = (a.activeTab - 1 + len(tabNames)) % len(tabNames)
 			return a, nil
-		case tea.KeyEsc:
-			return a, nil
 		case tea.KeyCtrlC:
 			return a, tea.Quit
+		case tea.KeyUp, tea.KeyDown:
+			// Forward navigation keys to the active view
+			switch a.activeTab {
+			case 1:
+				a.projectsView.Update(msg)
+			case 2:
+				a.sessionsView.Update(msg)
+			case 5:
+				a.toolsView.Update(msg)
+			}
+			return a, nil
+		case tea.KeyEsc:
+			// Forward Esc to views with active filters
+			switch a.activeTab {
+			case 1:
+				a.projectsView.Update(msg)
+			case 2:
+				a.sessionsView.Update(msg)
+			}
+			return a, nil
+		case tea.KeyBackspace:
+			// Forward backspace to views with active filters
+			switch a.activeTab {
+			case 1:
+				a.projectsView.Update(msg)
+			case 2:
+				a.sessionsView.Update(msg)
+			}
+			return a, nil
 		case tea.KeyEnter:
 			if a.activeTab == 2 {
 				a.openSessionDetail()
 			}
 			return a, nil
-		case tea.KeyUp, tea.KeyDown:
-			// Forward navigation keys to the active view
-			if a.activeTab == 2 {
-				a.sessionsView.Update(msg)
-			} else if a.activeTab == 5 {
-				a.toolsView.Update(msg)
-			}
-			return a, nil
 		case tea.KeyRunes:
 			switch string(msg.Runes) {
+			case "/":
+				// Forward '/' to activate filter on views that support it
+				switch a.activeTab {
+				case 1:
+					a.projectsView.Update(msg)
+				case 2:
+					a.sessionsView.Update(msg)
+				}
+				return a, nil
 			case "q":
+				// Don't quit if filter is active
+				if a.activeTab == 1 && a.projectsView.FilterActive() {
+					a.projectsView.Update(msg)
+					return a, nil
+				}
+				if a.activeTab == 2 && a.sessionsView.FilterActive() {
+					a.sessionsView.Update(msg)
+					return a, nil
+				}
 				return a, tea.Quit
 			case "1", "2", "3", "4", "5", "6":
+				// Don't switch tabs if filter is active
+				if a.activeTab == 1 && a.projectsView.FilterActive() {
+					a.projectsView.Update(msg)
+					return a, nil
+				}
+				if a.activeTab == 2 && a.sessionsView.FilterActive() {
+					a.sessionsView.Update(msg)
+					return a, nil
+				}
 				idx := int(msg.Runes[0]-'0') - 1
 				if idx < len(tabNames) {
 					a.activeTab = idx
 				}
 				return a, nil
 			case "j", "k":
-				if a.activeTab == 2 {
+				switch a.activeTab {
+				case 1:
+					a.projectsView.Update(msg)
+				case 2:
 					a.sessionsView.Update(msg)
-				} else if a.activeTab == 5 {
+				case 5:
 					a.toolsView.Update(msg)
 				}
 				return a, nil
+			default:
+				// Forward any other runes to views with active filters
+				if a.activeTab == 1 && a.projectsView.FilterActive() {
+					a.projectsView.Update(msg)
+					return a, nil
+				}
+				if a.activeTab == 2 && a.sessionsView.FilterActive() {
+					a.sessionsView.Update(msg)
+					return a, nil
+				}
 			}
 		}
 

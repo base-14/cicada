@@ -82,6 +82,50 @@ func TestApp_ScanProgress(t *testing.T) {
 	}
 }
 
+func TestApp_SlashActivatesFilterOnSessions(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	// Switch to sessions tab
+	app.activeTab = 2
+
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	app = updated.(App)
+
+	if !app.sessionsView.FilterActive() {
+		t.Error("expected sessions filter to be active after '/'")
+	}
+}
+
+func TestApp_SlashActivatesFilterOnProjects(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	// Switch to projects tab
+	app.activeTab = 1
+
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	app = updated.(App)
+
+	if !app.projectsView.FilterActive() {
+		t.Error("expected projects filter to be active after '/'")
+	}
+}
+
+func TestApp_FilterActiveBlocksQuit(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.activeTab = 2
+
+	// Activate filter
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	app = updated.(App)
+
+	// Press 'q' should NOT quit
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd != nil {
+		t.Error("expected 'q' not to quit when filter is active")
+	}
+}
+
 func TestApp_ScanComplete(t *testing.T) {
 	s := store.New()
 	app := NewApp(s, "")

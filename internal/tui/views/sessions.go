@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/r/cicada/internal/model"
 	"github.com/r/cicada/internal/store"
+	"github.com/r/cicada/internal/tui/components"
 )
 
 // SessionsView shows a sortable list of all sessions.
@@ -16,23 +17,42 @@ type SessionsView struct {
 	store    *store.Store
 	selected int
 	rows     []*model.SessionMeta // cached sorted list
+	filter   *components.Filter
 }
 
 // NewSessionsView creates a new SessionsView.
 func NewSessionsView(s *store.Store) *SessionsView {
-	return &SessionsView{store: s}
+	return &SessionsView{store: s, filter: components.NewFilter()}
 }
 
 // refreshRows fetches and sorts sessions from the store (newest first).
+// If the filter has a query, only matching sessions are included.
 func (v *SessionsView) refreshRows() {
-	v.rows = v.store.AllSessions()
+	all := v.store.AllSessions()
+	if v.filter.Query == "" {
+		v.rows = all
+	} else {
+		v.rows = make([]*model.SessionMeta, 0)
+		for _, s := range all {
+			project := "/" + strings.ReplaceAll(strings.TrimPrefix(s.ProjectPath, "-"), "-", "/")
+			if v.filter.Matches(s.Slug) || v.filter.Matches(s.InitialPrompt) || v.filter.Matches(project) {
+				v.rows = append(v.rows, s)
+			}
+		}
+	}
 	sort.Slice(v.rows, func(i, j int) bool {
 		return v.rows[i].StartTime.After(v.rows[j].StartTime)
 	})
 }
 
-// Update handles key events for arrow navigation.
+// Update handles key events for arrow navigation and filter.
 func (v *SessionsView) Update(msg tea.KeyMsg) {
+	// Forward to filter first
+	if v.filter.Update(msg) {
+		v.selected = 0
+		return
+	}
+
 	v.refreshRows()
 	switch msg.Type {
 	case tea.KeyUp:
@@ -57,6 +77,11 @@ func (v *SessionsView) Update(msg tea.KeyMsg) {
 	}
 }
 
+// FilterActive returns true if the filter input is active.
+func (v *SessionsView) FilterActive() bool {
+	return v.filter.Active
+}
+
 // SelectedSession returns the currently selected session, or nil.
 func (v *SessionsView) SelectedSession() *model.SessionMeta {
 	v.refreshRows()
@@ -70,12 +95,21 @@ func (v *SessionsView) SelectedSession() *model.SessionMeta {
 func (v *SessionsView) View(width, height int) string {
 	v.refreshRows()
 
-	if len(v.rows) == 0 {
-		return "\n  No sessions found. Waiting for scan to complete..."
-	}
-
 	var b strings.Builder
 	b.WriteString("\n")
+
+	// Filter bar
+	if filterView := v.filter.View(); filterView != "" {
+		b.WriteString("  " + filterView + "\n")
+	}
+
+	if len(v.rows) == 0 {
+		if v.filter.Query != "" {
+			b.WriteString("  No matching sessions.")
+			return b.String()
+		}
+		return "\n  No sessions found. Waiting for scan to complete..."
+	}
 
 	// Header
 	header := fmt.Sprintf("  %-20s %-30s %-12s %10s %10s %6s",

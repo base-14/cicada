@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/r/cicada/internal/model"
 	"github.com/r/cicada/internal/store"
 )
@@ -98,6 +99,101 @@ func TestSessionsView_Empty(t *testing.T) {
 	}
 	if !strings.Contains(content, "No sessions") {
 		t.Error("expected 'No sessions' message")
+	}
+}
+
+func TestSessionsView_FilterBySlug(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "happy-cat", ProjectPath: "-Users-r-work-myproject",
+		StartTime: now.Add(-2 * time.Hour), Duration: time.Hour,
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 10,
+	})
+	s.Add(&model.SessionMeta{
+		UUID: "u2", Slug: "cool-fox", ProjectPath: "-Users-r-work-other",
+		StartTime: now.Add(-time.Hour), Duration: time.Hour,
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 8,
+	})
+
+	view := NewSessionsView(s)
+	// Activate filter and type "happy"
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+	content := view.View(100, 24)
+	if !strings.Contains(content, "happy-cat") {
+		t.Error("expected 'happy-cat' to be visible")
+	}
+	if strings.Contains(content, "cool-fox") {
+		t.Error("expected 'cool-fox' to be filtered out")
+	}
+}
+
+func TestSessionsView_FilterByProject(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "s1", ProjectPath: "-Users-r-work-myproject",
+		StartTime: now, Duration: time.Hour,
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 10,
+	})
+	s.Add(&model.SessionMeta{
+		UUID: "u2", Slug: "s2", ProjectPath: "-Users-r-work-other",
+		StartTime: now.Add(time.Hour), Duration: time.Hour,
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 8,
+	})
+
+	view := NewSessionsView(s)
+	// Filter by project path
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	for _, r := range "myproject" {
+		view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	content := view.View(100, 24)
+	if !strings.Contains(content, "s1") {
+		t.Error("expected 's1' to be visible")
+	}
+	if strings.Contains(content, "s2") {
+		t.Error("expected 's2' to be filtered out")
+	}
+}
+
+func TestSessionsView_FilterShowsBar(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "u1", Slug: "s1", ProjectPath: "-Users-r-work-proj",
+		StartTime: now, Duration: time.Hour,
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	view := NewSessionsView(s)
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	for _, r := range "test" {
+		view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	content := view.View(100, 24)
+	if !strings.Contains(content, "/ test") {
+		t.Error("expected filter bar '/ test' in view")
 	}
 }
 

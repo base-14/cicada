@@ -5,7 +5,9 @@ import (
 	"sort"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/r/cicada/internal/store"
+	"github.com/r/cicada/internal/tui/components"
 )
 
 // ProjectRow holds display data for a project.
@@ -20,11 +22,44 @@ type ProjectRow struct {
 type ProjectsView struct {
 	store    *store.Store
 	selected int
+	filter   *components.Filter
 }
 
 // NewProjectsView creates a new ProjectsView.
 func NewProjectsView(s *store.Store) *ProjectsView {
-	return &ProjectsView{store: s}
+	return &ProjectsView{store: s, filter: components.NewFilter()}
+}
+
+// Update handles key events for navigation and filter.
+func (v *ProjectsView) Update(msg tea.KeyMsg) {
+	// Forward to filter first
+	if v.filter.Update(msg) {
+		v.selected = 0
+		return
+	}
+
+	switch msg.Type {
+	case tea.KeyUp:
+		if v.selected > 0 {
+			v.selected--
+		}
+	case tea.KeyDown:
+		v.selected++
+	case tea.KeyRunes:
+		switch string(msg.Runes) {
+		case "k":
+			if v.selected > 0 {
+				v.selected--
+			}
+		case "j":
+			v.selected++
+		}
+	}
+}
+
+// FilterActive returns true if the filter input is active.
+func (v *ProjectsView) FilterActive() bool {
+	return v.filter.Active
 }
 
 // View renders the projects list.
@@ -36,6 +71,13 @@ func (v *ProjectsView) View(width, height int) string {
 
 	rows := make([]ProjectRow, 0, len(projects))
 	for _, p := range projects {
+		decoded := "/" + strings.ReplaceAll(strings.TrimPrefix(p, "-"), "-", "/")
+
+		// Apply filter on decoded project name
+		if v.filter.Query != "" && !v.filter.Matches(decoded) {
+			continue
+		}
+
 		sessions := v.store.SessionsByProject(p)
 		lastActive := ""
 		for _, s := range sessions {
@@ -46,8 +88,6 @@ func (v *ProjectsView) View(width, height int) string {
 				}
 			}
 		}
-
-		decoded := "/" + strings.ReplaceAll(strings.TrimPrefix(p, "-"), "-", "/")
 
 		rows = append(rows, ProjectRow{
 			Name:         decoded,
@@ -61,8 +101,19 @@ func (v *ProjectsView) View(width, height int) string {
 		return rows[i].LastActive > rows[j].LastActive
 	})
 
+	// Clamp selected
+	if v.selected >= len(rows) && len(rows) > 0 {
+		v.selected = len(rows) - 1
+	}
+
 	var b strings.Builder
 	b.WriteString("\n")
+
+	// Filter bar
+	if filterView := v.filter.View(); filterView != "" {
+		b.WriteString("  " + filterView + "\n")
+	}
+
 	header := fmt.Sprintf("  %-50s %10s %20s", "Project", "Sessions", "Last Active")
 	b.WriteString(header + "\n")
 	b.WriteString("  " + strings.Repeat("\u2500", 82) + "\n")
