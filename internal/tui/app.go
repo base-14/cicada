@@ -456,6 +456,9 @@ func (a App) renderStatusBar() string {
 	}
 
 	help := "? help  q quit"
+	if a.activeTab == 2 || (a.showingDetail && a.detailView != nil) {
+		help = "y copy  ? help  q quit"
+	}
 	gap := a.width - len(status) - len(help) - 4
 	if gap < 0 {
 		gap = 1

@@ -373,6 +373,32 @@ func TestApp_HelpOverlayContainsYankKey(t *testing.T) {
 	}
 }
 
+func TestApp_StatusBarShowsCopyHintOnSessionsTab(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 30
+	app.activeTab = 2
+
+	bar := app.renderStatusBar()
+	if !strings.Contains(bar, "y copy") {
+		t.Error("expected status bar to contain 'y copy' on sessions tab")
+	}
+}
+
+func TestApp_StatusBarNoCopyHintOnOtherTabs(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 30
+	app.activeTab = 0
+
+	bar := app.renderStatusBar()
+	if strings.Contains(bar, "y copy") {
+		t.Error("expected status bar NOT to contain 'y copy' on analysis tab")
+	}
+}
+
 func TestApp_YankKeyIgnoredWhenFilterActive(t *testing.T) {
 	s := store.New()
 	now := time.Now()
