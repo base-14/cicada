@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt run clean
+.PHONY: build test lint fmt run clean doc tidy
 
 BINARY := cicada
 
@@ -19,3 +19,9 @@ run: build
 
 clean:
 	rm -f $(BINARY)
+
+doc:
+	go doc $(PKG)
+
+tidy:
+	go mod tidy
