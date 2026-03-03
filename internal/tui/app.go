@@ -2,11 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r/cicada/internal/store"
+	"github.com/r/cicada/internal/tui/components"
 )
 
 var tabNames = []string{"Dashboard", "Projects", "Sessions", "Analytics", "Agents", "Tools"}
@@ -141,15 +144,131 @@ func (a App) renderDashboard() string {
 
 	var b strings.Builder
 	b.WriteString("\n")
-	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
+
+	// Stats row
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s\n",
 		a.styles.StatLabel.Render("Sessions:"),
 		a.styles.StatValue.Render(fmt.Sprintf("%d", analytics.TotalSessions)),
 		a.styles.StatLabel.Render("Tokens In:"),
 		a.styles.StatValue.Render(formatTokens(analytics.TotalTokensIn)),
+		a.styles.StatLabel.Render("Tokens Out:"),
+		a.styles.StatValue.Render(formatTokens(analytics.TotalTokensOut)),
 		a.styles.StatLabel.Render("Projects:"),
 		a.styles.StatValue.Render(fmt.Sprintf("%d", analytics.ActiveProjects)),
 	)
+	b.WriteString("\n")
+
+	// Sessions by date sparkline (last 30 days)
+	if len(analytics.SessionsByDate) > 0 {
+		b.WriteString("  " + a.styles.Subtitle.Render("Sessions (last 30 days)") + "\n")
+		sparkData := buildSparklineData(analytics.SessionsByDate, 30)
+		sparkWidth := a.width - 4
+		if sparkWidth > 60 {
+			sparkWidth = 60
+		}
+		if sparkWidth < 10 {
+			sparkWidth = 10
+		}
+		b.WriteString("  " + components.Sparkline(sparkData, sparkWidth) + "\n\n")
+	}
+
+	// Top 5 tools bar chart
+	if len(analytics.ToolsUsed) > 0 {
+		b.WriteString("  " + a.styles.Subtitle.Render("Top Tools") + "\n")
+		topTools := topNTools(analytics.ToolsUsed, 5)
+		chartWidth := a.width - 4
+		if chartWidth > 60 {
+			chartWidth = 60
+		}
+		b.WriteString("  " + strings.ReplaceAll(components.BarChart(topTools, chartWidth), "\n", "\n  ") + "\n\n")
+	}
+
+	// Model distribution
+	if len(analytics.ModelsUsed) > 0 {
+		b.WriteString("  " + a.styles.Subtitle.Render("Models") + "\n")
+		opus, sonnet, haiku, other := categorizeModels(analytics.ModelsUsed)
+		total := opus + sonnet + haiku + other
+		if total > 0 {
+			if opus > 0 {
+				fmt.Fprintf(&b, "  Opus   %d%%  ", opus*100/total)
+			}
+			if sonnet > 0 {
+				fmt.Fprintf(&b, "  Sonnet %d%%  ", sonnet*100/total)
+			}
+			if haiku > 0 {
+				fmt.Fprintf(&b, "  Haiku  %d%%  ", haiku*100/total)
+			}
+			if other > 0 {
+				fmt.Fprintf(&b, "  Other  %d%%  ", other*100/total)
+			}
+			b.WriteString("\n\n")
+		}
+	}
+
+	// Work mode split
+	totalWork := analytics.WorkModeExplore + analytics.WorkModeBuild + analytics.WorkModeTest
+	if totalWork > 0 {
+		b.WriteString("  " + a.styles.Subtitle.Render("Work Mode") + "\n")
+		fmt.Fprintf(&b, "  Exploration %d%%    Building %d%%    Testing %d%%\n",
+			analytics.WorkModeExplore*100/totalWork,
+			analytics.WorkModeBuild*100/totalWork,
+			analytics.WorkModeTest*100/totalWork,
+		)
+	}
+
 	return b.String()
+}
+
+// buildSparklineData returns session counts for the last n days, sorted by date.
+func buildSparklineData(sessionsByDate map[string]int, days int) []int {
+	now := time.Now()
+	data := make([]int, days)
+	for i := range days {
+		date := now.AddDate(0, 0, -(days-1-i)).Format("2006-01-02")
+		data[i] = sessionsByDate[date]
+	}
+	return data
+}
+
+// topNTools returns the top n tools by usage as BarItems.
+func topNTools(toolsUsed map[string]int, n int) []components.BarItem {
+	type kv struct {
+		key string
+		val int
+	}
+	var sorted []kv
+	for k, v := range toolsUsed {
+		sorted = append(sorted, kv{k, v})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].val > sorted[j].val
+	})
+	if len(sorted) > n {
+		sorted = sorted[:n]
+	}
+	items := make([]components.BarItem, len(sorted))
+	for i, s := range sorted {
+		items[i] = components.BarItem{Label: s.key, Value: s.val}
+	}
+	return items
+}
+
+// categorizeModels buckets model usage into Opus, Sonnet, Haiku, and Other.
+func categorizeModels(modelsUsed map[string]int) (opus, sonnet, haiku, other int) {
+	for name, count := range modelsUsed {
+		lower := strings.ToLower(name)
+		switch {
+		case strings.Contains(lower, "opus"):
+			opus += count
+		case strings.Contains(lower, "sonnet"):
+			sonnet += count
+		case strings.Contains(lower, "haiku"):
+			haiku += count
+		default:
+			other += count
+		}
+	}
+	return
 }
 
 func (a App) renderStatusBar() string {
