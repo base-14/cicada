@@ -24,7 +24,7 @@ go install github.com/base-14/cicada@latest
 cicada
 ```
 
-Navigate with arrow keys or vim bindings (`h/j/k/l`). Press `?` for help, `/` to filter, `Enter` to drill in, `Esc` to go back.
+Navigate with arrow keys or vim bindings (`h/j/k/l`). Press `?` for help, `/` to filter, `Enter` to drill in, `Esc` to go back, `y` to copy `claude --resume <id>` to clipboard.
 
 ## What it shows
 
