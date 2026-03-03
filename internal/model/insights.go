@@ -33,7 +33,8 @@ type Insights struct {
 }
 
 // ComputeInsights calculates feel-good analytics from a slice of sessions.
-func ComputeInsights(sessions []*SessionMeta) Insights {
+// If history is non-nil, it enriches active days, streaks, hour counts, and total questions.
+func ComputeInsights(sessions []*SessionMeta, history *HistoryStats) Insights {
 	var ins Insights
 	if len(sessions) == 0 {
 		return ins
@@ -89,6 +90,19 @@ func ComputeInsights(sessions []*SessionMeta) Insights {
 		for _, br := range s.GitBranches {
 			branchSet[br] = true
 		}
+	}
+
+	// Merge history data if available
+	if history != nil {
+		for date := range history.ActiveDays {
+			if _, exists := dateSet[date]; !exists {
+				dateSet[date]++
+			}
+		}
+		for hour, count := range history.HourCounts {
+			hourCounts[hour] += count
+		}
+		ins.TotalQuestions = history.TotalPrompts
 	}
 
 	// Active days

@@ -28,7 +28,7 @@ func TestComputeInsights_Streaks(t *testing.T) {
 		makeSession("s5", now.AddDate(0, 0, -5), time.Hour, map[string]int{"Read": 1}, 1, nil),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	if insights.CurrentStreak != 3 {
 		t.Errorf("expected current streak 3, got %d", insights.CurrentStreak)
@@ -50,7 +50,7 @@ func TestComputeInsights_PersonalBests(t *testing.T) {
 		makeSession("s2", localMidnight.Add(14*time.Hour), 30*time.Minute, map[string]int{"Bash": 2}, 5, nil),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	if insights.LongestSession.UUID != "s1" {
 		t.Errorf("expected longest session s1, got %s", insights.LongestSession.UUID)
@@ -73,7 +73,7 @@ func TestComputeInsights_FunStats(t *testing.T) {
 		makeSession("s2", now.AddDate(0, 0, -1), time.Hour, map[string]int{"Bash": 2, "Read": 1}, 5, []string{"main"}),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	if insights.TotalQuestions != 15 {
 		t.Errorf("expected 15 total questions, got %d", insights.TotalQuestions)
@@ -100,7 +100,7 @@ func TestComputeInsights_Trends(t *testing.T) {
 		makeSession("s4", now.AddDate(0, 0, -8), time.Hour, map[string]int{"Read": 1}, 4, nil),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	if insights.SessionsThisWeek != 3 {
 		t.Errorf("expected 3 sessions this week, got %d", insights.SessionsThisWeek)
@@ -118,7 +118,7 @@ func TestComputeInsights_MostProductiveDay(t *testing.T) {
 		makeSession("s3", now.AddDate(0, 0, -1), time.Hour, map[string]int{}, 2, nil),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	expected := now.Format("2006-01-02")
 	if insights.MostProductiveDay != expected {
@@ -130,7 +130,7 @@ func TestComputeInsights_MostProductiveDay(t *testing.T) {
 }
 
 func TestComputeInsights_Empty(t *testing.T) {
-	insights := ComputeInsights(nil)
+	insights := ComputeInsights(nil, nil)
 	if insights.CurrentStreak != 0 {
 		t.Errorf("expected 0 streak for nil sessions, got %d", insights.CurrentStreak)
 	}
@@ -146,9 +146,68 @@ func TestComputeInsights_AverageDuration(t *testing.T) {
 		makeSession("s2", now.AddDate(0, 0, -1), 4*time.Hour, map[string]int{}, 3, nil),
 	}
 
-	insights := ComputeInsights(sessions)
+	insights := ComputeInsights(sessions, nil)
 
 	if insights.AvgDuration != 3*time.Hour {
 		t.Errorf("expected avg duration 3h, got %s", insights.AvgDuration)
+	}
+}
+
+func TestComputeInsights_WithHistory_EnrichesActiveDays(t *testing.T) {
+	now := time.Date(2026, 3, 3, 12, 0, 0, 0, time.Local)
+	sessions := []*SessionMeta{
+		makeSession("s1", now, time.Hour, map[string]int{"Read": 1}, 5, nil),
+	}
+	history := &HistoryStats{
+		TotalPrompts: 100,
+		ActiveDays: map[string]bool{
+			now.Format("2006-01-02"):                    true,
+			now.AddDate(0, 0, -1).Format("2006-01-02"):  true,
+			now.AddDate(0, 0, -5).Format("2006-01-02"):  true,
+		},
+		PromptsByDate: map[string]int{},
+		HourCounts:    map[int]int{},
+	}
+
+	insights := ComputeInsights(sessions, history)
+
+	if insights.ActiveDays != 3 {
+		t.Errorf("expected 3 active days, got %d", insights.ActiveDays)
+	}
+	if insights.TotalQuestions != 100 {
+		t.Errorf("expected 100 total questions from history, got %d", insights.TotalQuestions)
+	}
+}
+
+func TestComputeInsights_WithHistory_EnrichesStreaks(t *testing.T) {
+	now := time.Date(2026, 3, 3, 12, 0, 0, 0, time.Local)
+	sessions := []*SessionMeta{
+		makeSession("s1", now, time.Hour, map[string]int{}, 1, nil),
+	}
+	history := &HistoryStats{
+		TotalPrompts: 10,
+		ActiveDays: map[string]bool{
+			now.AddDate(0, 0, -1).Format("2006-01-02"): true,
+			now.AddDate(0, 0, -2).Format("2006-01-02"): true,
+		},
+		PromptsByDate: map[string]int{},
+		HourCounts:    map[int]int{},
+	}
+
+	insights := ComputeInsights(sessions, history)
+
+	if insights.CurrentStreak != 3 {
+		t.Errorf("expected current streak 3 (today + 2 from history), got %d", insights.CurrentStreak)
+	}
+}
+
+func TestComputeInsights_NilHistory(t *testing.T) {
+	now := time.Date(2026, 3, 3, 12, 0, 0, 0, time.Local)
+	sessions := []*SessionMeta{
+		makeSession("s1", now, time.Hour, map[string]int{"Read": 1}, 5, nil),
+	}
+	insights := ComputeInsights(sessions, nil)
+	if insights.TotalQuestions != 5 {
+		t.Errorf("expected 5 questions from session MessageCount, got %d", insights.TotalQuestions)
 	}
 }

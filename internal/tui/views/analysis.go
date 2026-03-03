@@ -53,7 +53,7 @@ func (v *AnalysisView) View(width, height int) string {
 	}
 
 	sessions := v.store.AllSessions()
-	insights := model.ComputeInsights(sessions)
+	insights := model.ComputeInsights(sessions, nil)
 
 	subtitleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#06B6D4"))
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
