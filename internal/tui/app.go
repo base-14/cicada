@@ -35,6 +35,7 @@ type App struct {
 	scanTotal    int
 	scanDone     bool
 	projectsView *views.ProjectsView
+	sessionsView *views.SessionsView
 }
 
 // NewApp creates a new App model.
@@ -44,6 +45,7 @@ func NewApp(s *store.Store) App {
 		store:        s,
 		styles:       NewStyles(theme),
 		projectsView: views.NewProjectsView(s),
+		sessionsView: views.NewSessionsView(s),
 	}
 }
 
@@ -70,6 +72,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case tea.KeyCtrlC:
 			return a, tea.Quit
+		case tea.KeyUp, tea.KeyDown:
+			// Forward navigation keys to the active view
+			if a.activeTab == 2 {
+				a.sessionsView.Update(msg)
+			}
+			return a, nil
 		case tea.KeyRunes:
 			switch string(msg.Runes) {
 			case "q":
@@ -78,6 +86,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				idx := int(msg.Runes[0]-'0') - 1
 				if idx < len(tabNames) {
 					a.activeTab = idx
+				}
+				return a, nil
+			case "j", "k":
+				if a.activeTab == 2 {
+					a.sessionsView.Update(msg)
 				}
 				return a, nil
 			}
@@ -139,6 +152,8 @@ func (a App) renderContent() string {
 		return a.renderDashboard()
 	case 1:
 		return a.projectsView.View(a.width, a.height-4)
+	case 2:
+		return a.sessionsView.View(a.width, a.height-4)
 	default:
 		return fmt.Sprintf("  %s view — coming soon", tabNames[a.activeTab])
 	}
