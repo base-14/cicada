@@ -27,6 +27,7 @@ brews:
       owner: base-14
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
     homepage: "https://github.com/base-14/cicada"
     description: "TUI analytics dashboard for Claude Code sessions"
     license: "MIT"
