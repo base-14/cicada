@@ -3,7 +3,12 @@ package components
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+// Bar colors — gradient from cyan to purple.
+var barColors = []string{"#06B6D4", "#3B82F6", "#6366F1", "#7C3AED", "#9333EA"}
 
 // BarItem represents a single bar in a bar chart.
 type BarItem struct {
@@ -11,7 +16,7 @@ type BarItem struct {
 	Value int
 }
 
-// BarChart renders a horizontal bar chart.
+// BarChart renders a horizontal bar chart with colored bars.
 func BarChart(items []BarItem, maxWidth int) string {
 	if len(items) == 0 {
 		return ""
@@ -33,8 +38,11 @@ func BarChart(items []BarItem, maxWidth int) string {
 		barWidth = 5
 	}
 
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
+	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Faint(true)
+
 	var lines []string
-	for _, item := range items {
+	for i, item := range items {
 		var bar int
 		if maxVal > 0 {
 			bar = item.Value * barWidth / maxVal
@@ -42,8 +50,13 @@ func BarChart(items []BarItem, maxWidth int) string {
 		if bar < 1 && item.Value > 0 {
 			bar = 1
 		}
-		label := fmt.Sprintf("%-*s", maxLabel, item.Label)
-		line := fmt.Sprintf("%s %s %d", label, strings.Repeat("\u2588", bar), item.Value)
+		color := barColors[i%len(barColors)]
+		barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
+
+		label := labelStyle.Render(fmt.Sprintf("%-*s", maxLabel, item.Label))
+		barStr := barStyle.Render(strings.Repeat("█", bar))
+		count := countStyle.Render(fmt.Sprintf("%d", item.Value))
+		line := fmt.Sprintf("%s %s %s", label, barStr, count)
 		lines = append(lines, line)
 	}
 
