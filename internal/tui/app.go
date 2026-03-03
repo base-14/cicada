@@ -2,12 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/r/cicada/internal/parser"
 	"github.com/r/cicada/internal/store"
 	"github.com/r/cicada/internal/tui/components"
 	"github.com/r/cicada/internal/tui/views"
@@ -26,26 +28,30 @@ type ScanCompleteMsg struct{}
 
 // App is the root Bubbletea model.
 type App struct {
-	store        *store.Store
-	styles       Styles
-	activeTab    int
-	width        int
-	height       int
-	scanScanned  int
-	scanTotal    int
-	scanDone     bool
-	projectsView *views.ProjectsView
-	sessionsView *views.SessionsView
+	store          *store.Store
+	styles         Styles
+	activeTab      int
+	width          int
+	height         int
+	scanScanned    int
+	scanTotal      int
+	scanDone       bool
+	projectsView   *views.ProjectsView
+	sessionsView   *views.SessionsView
+	detailView     *views.SessionDetailView
+	showingDetail  bool
+	projectsDir    string // path to ~/.claude/projects
 }
 
-// NewApp creates a new App model.
-func NewApp(s *store.Store) App {
+// NewApp creates a new App model. projectsDir is the path to ~/.claude/projects.
+func NewApp(s *store.Store, projectsDir string) App {
 	theme := DefaultTheme()
 	return App{
 		store:        s,
 		styles:       NewStyles(theme),
 		projectsView: views.NewProjectsView(s),
 		sessionsView: views.NewSessionsView(s),
+		projectsDir:  projectsDir,
 	}
 }
 
@@ -61,6 +67,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
+		// When showing detail view, forward all keys to it except Esc and ctrl+c
+		if a.showingDetail && a.detailView != nil {
+			switch msg.Type {
+			case tea.KeyEsc:
+				a.showingDetail = false
+				a.detailView = nil
+				return a, nil
+			case tea.KeyCtrlC:
+				return a, tea.Quit
+			default:
+				a.detailView.Update(msg)
+				return a, nil
+			}
+		}
+
 		switch msg.Type {
 		case tea.KeyTab:
 			a.activeTab = (a.activeTab + 1) % len(tabNames)
@@ -72,6 +93,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case tea.KeyCtrlC:
 			return a, tea.Quit
+		case tea.KeyEnter:
+			if a.activeTab == 2 {
+				a.openSessionDetail()
+			}
+			return a, nil
 		case tea.KeyUp, tea.KeyDown:
 			// Forward navigation keys to the active view
 			if a.activeTab == 2 {
@@ -146,7 +172,36 @@ func (a App) renderTabBar() string {
 	return title + " " + strings.Join(tabs, "")
 }
 
+func (a *App) openSessionDetail() {
+	session := a.sessionsView.SelectedSession()
+	if session == nil {
+		return
+	}
+
+	// Check cache first
+	detail := a.store.GetDetail(session.UUID)
+	if detail == nil {
+		// Lazy load: parse JSONL file
+		jsonlPath := filepath.Join(a.projectsDir, session.ProjectPath, session.UUID+".jsonl")
+		messages, err := parser.ReadSessionFile(jsonlPath)
+		if err != nil {
+			// Can't load detail, silently fail
+			return
+		}
+		detail = parser.ExtractSessionDetail(messages, session)
+		a.store.SetDetail(session.UUID, detail)
+	}
+
+	a.detailView = views.NewSessionDetailView(a.store, session, detail)
+	a.showingDetail = true
+}
+
 func (a App) renderContent() string {
+	// Show detail view when drilling in from sessions
+	if a.showingDetail && a.detailView != nil && a.activeTab == 2 {
+		return a.detailView.View(a.width, a.height-4)
+	}
+
 	switch a.activeTab {
 	case 0:
 		return a.renderDashboard()

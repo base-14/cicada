@@ -19,7 +19,7 @@ func main() {
 	projectsDir := filepath.Join(homeDir, ".claude", "projects")
 
 	st := store.New()
-	app := tui.NewApp(st)
+	app := tui.NewApp(st, projectsDir)
 
 	p := tea.NewProgram(app, tea.WithAltScreen())
 

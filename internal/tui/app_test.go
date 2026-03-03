@@ -9,7 +9,7 @@ import (
 
 func TestApp_InitialView(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	if app.activeTab != 0 {
 		t.Errorf("expected initial tab 0, got %d", app.activeTab)
@@ -18,7 +18,7 @@ func TestApp_InitialView(t *testing.T) {
 
 func TestApp_TabNavigation(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	// Press Tab to move to next
 	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyTab})
@@ -37,7 +37,7 @@ func TestApp_TabNavigation(t *testing.T) {
 
 func TestApp_TabWrapAround(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	// Shift+Tab from first tab should wrap to last
 	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
@@ -49,7 +49,7 @@ func TestApp_TabWrapAround(t *testing.T) {
 
 func TestApp_NumberKeyNavigation(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	// Press '3' to go to Sessions tab (index 2)
 	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}})
@@ -61,7 +61,7 @@ func TestApp_NumberKeyNavigation(t *testing.T) {
 
 func TestApp_QuitKey(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if cmd == nil {
@@ -71,7 +71,7 @@ func TestApp_QuitKey(t *testing.T) {
 
 func TestApp_ScanProgress(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	msg := ScanBatchMsg{Scanned: 50, Total: 100}
 	updated, _ := app.Update(msg)
@@ -84,7 +84,7 @@ func TestApp_ScanProgress(t *testing.T) {
 
 func TestApp_ScanComplete(t *testing.T) {
 	s := store.New()
-	app := NewApp(s)
+	app := NewApp(s, "")
 
 	msg := ScanCompleteMsg{}
 	updated, _ := app.Update(msg)
