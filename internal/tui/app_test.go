@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -66,6 +67,71 @@ func TestApp_QuitKey(t *testing.T) {
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if cmd == nil {
 		t.Error("expected quit command")
+	}
+}
+
+func TestApp_HelpOverlayToggle(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	// Press '?' to show help
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	app = updated.(App)
+
+	if !app.showingHelp {
+		t.Error("expected showingHelp to be true after '?'")
+	}
+}
+
+func TestApp_HelpOverlayDismiss(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	// Show help
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	app = updated.(App)
+
+	// Any key dismisses it
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	app = updated.(App)
+
+	if app.showingHelp {
+		t.Error("expected showingHelp to be false after pressing a key")
+	}
+}
+
+func TestApp_HelpOverlayBlocksOtherKeys(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	// Show help
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	app = updated.(App)
+
+	// 'q' should dismiss help, not quit
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd != nil {
+		t.Error("expected 'q' to dismiss help, not quit")
+	}
+}
+
+func TestApp_HelpOverlayRendersContent(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 40
+	app.showingHelp = true
+
+	view := app.View()
+	if view == "" {
+		t.Error("expected non-empty view")
+	}
+	// Check that help content is rendered
+	if !strings.Contains(view, "Navigation") {
+		t.Error("expected help overlay to contain 'Navigation'")
+	}
+	if !strings.Contains(view, "cicada") {
+		t.Error("expected help overlay to contain 'cicada'")
 	}
 }
 

@@ -43,6 +43,7 @@ type App struct {
 	toolsView      *views.ToolsView
 	detailView     *views.SessionDetailView
 	showingDetail  bool
+	showingHelp    bool
 	projectsDir    string // path to ~/.claude/projects
 }
 
@@ -73,6 +74,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyMsg:
+		// When showing help overlay, any key dismisses it
+		if a.showingHelp {
+			a.showingHelp = false
+			return a, nil
+		}
+
 		// When showing detail view, forward all keys to it except Esc and ctrl+c
 		if a.showingDetail && a.detailView != nil {
 			switch msg.Type {
@@ -133,6 +140,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case tea.KeyRunes:
 			switch string(msg.Runes) {
+			case "?":
+				a.showingHelp = true
+				return a, nil
 			case "/":
 				// Forward '/' to activate filter on views that support it
 				switch a.activeTab {
@@ -209,6 +219,11 @@ func (a App) View() string {
 		return "Loading..."
 	}
 
+	// Help overlay takes over the entire view
+	if a.showingHelp {
+		return a.renderHelpOverlay()
+	}
+
 	var b strings.Builder
 
 	// Tab bar
@@ -226,6 +241,37 @@ func (a App) View() string {
 	b.WriteString(a.renderStatusBar())
 
 	return b.String()
+}
+
+func (a App) renderHelpOverlay() string {
+	help := `  cicada — Claude Code Session Analyzer
+
+  Navigation
+    1-6            Switch view
+    Tab/Shift+Tab  Next/prev view
+    Enter          Open selected item
+    Esc            Go back
+
+  Lists
+    ↑/↓ j/k       Navigate rows
+    /              Search/filter
+
+  Session Detail
+    ←/→ h/l       Switch sub-tab
+    ↑/↓ j/k       Scroll content
+
+  General
+    ?              Toggle this help
+    q              Quit
+
+  Press any key to dismiss`
+
+	style := lipgloss.NewStyle().
+		Width(a.width).
+		Height(a.height).
+		Padding(2, 4)
+
+	return style.Render(help)
 }
 
 func (a App) renderTabBar() string {
