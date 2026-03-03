@@ -112,3 +112,104 @@ func TestProjectDetailView_EmptySessions(t *testing.T) {
 		t.Error("expected non-empty view for empty project")
 	}
 }
+
+func TestProjectDetailView_SessionsTab(t *testing.T) {
+	s, project := newTestProjectSessions()
+	sessions := s.SessionsByProject(project)
+	view := NewProjectDetailView(project, sessions)
+
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "Sessions") {
+		t.Error("expected 'Sessions' tab label")
+	}
+	if !strings.Contains(content, "fix-login") {
+		t.Error("expected session slug 'fix-login' in sessions list")
+	}
+	if !strings.Contains(content, "add-tests") {
+		t.Error("expected session slug 'add-tests' in sessions list")
+	}
+}
+
+func TestProjectDetailView_ToolsTab(t *testing.T) {
+	s, project := newTestProjectSessions()
+	sessions := s.SessionsByProject(project)
+	view := NewProjectDetailView(project, sessions)
+
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
+	view.Update(tea.KeyMsg{Type: tea.KeyRight})
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "Tools") {
+		t.Error("expected 'Tools' tab label")
+	}
+	if !strings.Contains(content, "Read") {
+		t.Error("expected 'Read' tool in tools tab")
+	}
+}
+
+func TestProjectDetailView_ActivityTab(t *testing.T) {
+	s, project := newTestProjectSessions()
+	sessions := s.SessionsByProject(project)
+	view := NewProjectDetailView(project, sessions)
+
+	for i := 0; i < 3; i++ {
+		view.Update(tea.KeyMsg{Type: tea.KeyRight})
+	}
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "Activity") {
+		t.Error("expected 'Activity' tab label")
+	}
+	if !strings.Contains(content, "Heatmap") {
+		t.Error("expected heatmap in activity tab")
+	}
+}
+
+func TestProjectDetailView_SkillsTab(t *testing.T) {
+	s, project := newTestProjectSessions()
+	sessions := s.SessionsByProject(project)
+	view := NewProjectDetailView(project, sessions)
+
+	for i := 0; i < 4; i++ {
+		view.Update(tea.KeyMsg{Type: tea.KeyRight})
+	}
+	content := view.View(100, 30)
+
+	if !strings.Contains(content, "Skills") {
+		t.Error("expected 'Skills' tab label")
+	}
+	if !strings.Contains(content, "tdd") {
+		t.Error("expected 'tdd' skill in skills tab")
+	}
+	if !strings.Contains(content, "debugging") {
+		t.Error("expected 'debugging' skill in skills tab")
+	}
+}
+
+func TestProjectDetailView_VimKeys(t *testing.T) {
+	s, project := newTestProjectSessions()
+	sessions := s.SessionsByProject(project)
+	view := NewProjectDetailView(project, sessions)
+
+	// h/l for tab navigation
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")})
+	if view.activeTab != 1 {
+		t.Errorf("expected tab 1 after 'l', got %d", view.activeTab)
+	}
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	if view.activeTab != 0 {
+		t.Errorf("expected tab 0 after 'h', got %d", view.activeTab)
+	}
+
+	// j/k for scrolling
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	if view.scrollY != 1 {
+		t.Errorf("expected scrollY=1 after 'j', got %d", view.scrollY)
+	}
+	view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	if view.scrollY != 0 {
+		t.Errorf("expected scrollY=0 after 'k', got %d", view.scrollY)
+	}
+}
