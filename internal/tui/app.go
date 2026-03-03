@@ -39,6 +39,7 @@ type App struct {
 	projectsView   *views.ProjectsView
 	sessionsView   *views.SessionsView
 	analyticsView  *views.AnalyticsView
+	agentsView     *views.AgentsView
 	detailView     *views.SessionDetailView
 	showingDetail  bool
 	projectsDir    string // path to ~/.claude/projects
@@ -53,6 +54,7 @@ func NewApp(s *store.Store, projectsDir string) App {
 		projectsView:  views.NewProjectsView(s),
 		sessionsView:  views.NewSessionsView(s),
 		analyticsView: views.NewAnalyticsView(s),
+		agentsView:    views.NewAgentsView(s),
 		projectsDir:   projectsDir,
 	}
 }
@@ -213,6 +215,8 @@ func (a App) renderContent() string {
 		return a.sessionsView.View(a.width, a.height-4)
 	case 3:
 		return a.analyticsView.View(a.width, a.height-4)
+	case 4:
+		return a.agentsView.View(a.width, a.height-4)
 	default:
 		return fmt.Sprintf("  %s view — coming soon", tabNames[a.activeTab])
 	}
