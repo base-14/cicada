@@ -16,6 +16,8 @@ type Store struct {
 	scanMu      sync.RWMutex
 	scanScanned int
 	scanTotal   int
+
+	history *model.HistoryStats
 }
 
 // New creates a new empty Store.
@@ -157,4 +159,18 @@ func (s *Store) ScanProgress() (scanned, total int) {
 	s.scanMu.RLock()
 	defer s.scanMu.RUnlock()
 	return s.scanScanned, s.scanTotal
+}
+
+// SetHistoryStats stores the computed history statistics.
+func (s *Store) SetHistoryStats(stats *model.HistoryStats) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.history = stats
+}
+
+// HistoryStats returns the stored history statistics, or nil if not yet loaded.
+func (s *Store) HistoryStats() *model.HistoryStats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.history
 }

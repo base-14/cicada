@@ -108,6 +108,23 @@ func TestStore_Analytics(t *testing.T) {
 	}
 }
 
+func TestStore_HistoryStats_NilByDefault(t *testing.T) {
+	s := New()
+	if s.HistoryStats() != nil {
+		t.Error("expected nil history stats on new store")
+	}
+}
+
+func TestStore_SetAndGetHistoryStats(t *testing.T) {
+	s := New()
+	stats := &model.HistoryStats{TotalPrompts: 42}
+	s.SetHistoryStats(stats)
+	got := s.HistoryStats()
+	if got == nil || got.TotalPrompts != 42 {
+		t.Errorf("expected 42 prompts, got %v", got)
+	}
+}
+
 func TestStore_ScanProgress(t *testing.T) {
 	s := New()
 	s.SetScanProgress(50, 100)
