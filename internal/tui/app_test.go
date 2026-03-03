@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -264,5 +265,137 @@ func TestApp_ProjectDetailEscReturns(t *testing.T) {
 	}
 	if app.projectDetailView != nil {
 		t.Error("expected projectDetailView=nil after Esc")
+	}
+}
+
+func TestApp_YankKeyCopiesResumeCommand(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "abc-123-def", Slug: "test-session", ProjectPath: "-Users-r-work-proj1",
+		StartTime: now, EndTime: now.Add(time.Minute),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	app := NewApp(s, "/tmp/test")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 2
+	// Trigger View to populate rows
+	app.View()
+
+	// Press 'y' to copy resume command
+	result, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	app = result.(App)
+
+	if cmd == nil {
+		t.Error("expected a command from 'y' key press on sessions tab")
+	}
+}
+
+func TestApp_YankKeyNoOpOnOtherTabs(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.activeTab = 0 // Analysis tab
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if cmd != nil {
+		t.Error("expected no command from 'y' key on non-sessions tab")
+	}
+}
+
+func TestApp_CopyResultMsgSetsNotification(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	// Simulate successful copy
+	result, cmd := app.Update(CopyResultMsg{Err: nil})
+	app = result.(App)
+
+	if app.notification != "Copied!" {
+		t.Errorf("expected notification 'Copied!', got %q", app.notification)
+	}
+	if cmd == nil {
+		t.Error("expected a tick command to clear notification")
+	}
+}
+
+func TestApp_CopyResultMsgErrorSetsNotification(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	result, _ := app.Update(CopyResultMsg{Err: fmt.Errorf("no clipboard")})
+	app = result.(App)
+
+	if app.notification != "Copy failed" {
+		t.Errorf("expected notification 'Copy failed', got %q", app.notification)
+	}
+}
+
+func TestApp_ClearNotificationMsg(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.notification = "Copied!"
+
+	result, _ := app.Update(clearNotificationMsg{})
+	app = result.(App)
+
+	if app.notification != "" {
+		t.Errorf("expected empty notification, got %q", app.notification)
+	}
+}
+
+func TestApp_NotificationShowsInStatusBar(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 30
+	app.notification = "Copied!"
+
+	view := app.renderStatusBar()
+	if !strings.Contains(view, "Copied!") {
+		t.Error("expected status bar to contain 'Copied!'")
+	}
+}
+
+func TestApp_HelpOverlayContainsYankKey(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 40
+	app.showingHelp = true
+
+	view := app.View()
+	if !strings.Contains(view, "claude --resume") {
+		t.Error("expected help overlay to contain 'claude --resume'")
+	}
+}
+
+func TestApp_YankKeyIgnoredWhenFilterActive(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "abc-123", Slug: "test", ProjectPath: "-Users-r-work-proj1",
+		StartTime: now, EndTime: now.Add(time.Minute),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	app := NewApp(s, "/tmp/test")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 2
+
+	// Activate filter
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	app = updated.(App)
+
+	// Press 'y' — should NOT trigger copy
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if cmd != nil {
+		t.Error("expected 'y' to be forwarded to filter, not trigger copy")
 	}
 }

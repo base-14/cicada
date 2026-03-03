@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/base-14/cicada/internal/clipboard"
 	"github.com/base-14/cicada/internal/parser"
 	"github.com/base-14/cicada/internal/store"
 	"github.com/base-14/cicada/internal/tui/views"
@@ -25,6 +27,12 @@ type ScanCompleteMsg struct{}
 
 // HistoryScanCompleteMsg is sent when history.jsonl scanning finishes.
 type HistoryScanCompleteMsg struct{ Count int }
+
+// CopyResultMsg is sent after a clipboard copy attempt.
+type CopyResultMsg struct{ Err error }
+
+// clearNotificationMsg clears the status bar notification.
+type clearNotificationMsg struct{}
 
 // App is the root Bubbletea model.
 type App struct {
@@ -48,6 +56,9 @@ type App struct {
 	showingProjectDetail bool
 	showingHelp          bool
 	projectsDir          string // path to ~/.claude/projects
+	detailSessionUUID    string // UUID of session shown in detail view
+	notification         string
+	notificationTime     time.Time
 }
 
 // NewApp creates a new App model. projectsDir is the path to ~/.claude/projects.
@@ -83,15 +94,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
-		// When showing detail view, forward all keys to it except Esc and ctrl+c
+		// When showing detail view, forward all keys to it except Esc, ctrl+c, and y
 		if a.showingDetail && a.detailView != nil {
 			switch msg.Type {
 			case tea.KeyEsc:
 				a.showingDetail = false
 				a.detailView = nil
+				a.detailSessionUUID = ""
 				return a, nil
 			case tea.KeyCtrlC:
 				return a, tea.Quit
+			case tea.KeyRunes:
+				if string(msg.Runes) == "y" && a.detailSessionUUID != "" {
+					return a, a.copyResumeCmd(a.detailSessionUUID)
+				}
+				a.detailView.Update(msg)
+				return a, nil
 			default:
 				a.detailView.Update(msg)
 				return a, nil
@@ -201,6 +219,24 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.activeTab = idx
 				}
 				return a, nil
+			case "y":
+				if a.activeTab == 2 && !a.sessionsView.FilterActive() {
+					session := a.sessionsView.SelectedSession()
+					if session != nil {
+						return a, a.copyResumeCmd(session.UUID)
+					}
+					return a, nil
+				}
+				// Fall through to default for filter input
+				if a.activeTab == 1 && a.projectsView.FilterActive() {
+					a.projectsView.Update(msg)
+					return a, nil
+				}
+				if a.activeTab == 2 && a.sessionsView.FilterActive() {
+					a.sessionsView.Update(msg)
+					return a, nil
+				}
+				return a, nil
 			case "j", "k":
 				switch a.activeTab {
 				case 0:
@@ -237,6 +273,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case HistoryScanCompleteMsg:
 		a.historyCount = msg.Count
+		return a, nil
+
+	case CopyResultMsg:
+		if msg.Err != nil {
+			a.notification = "Copy failed"
+		} else {
+			a.notification = "Copied!"
+		}
+		a.notificationTime = time.Now()
+		return a, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+			return clearNotificationMsg{}
+		})
+
+	case clearNotificationMsg:
+		a.notification = ""
 		return a, nil
 	}
 
@@ -289,6 +340,9 @@ func (a App) renderHelpOverlay() string {
     ←/→ h/l       Switch sub-tab
     ↑/↓ j/k       Scroll content
 
+  Clipboard
+    y              Copy "claude --resume" command
+
   General
     ?              Toggle this help
     q              Quit
@@ -337,7 +391,15 @@ func (a *App) openSessionDetail() {
 	}
 
 	a.detailView = views.NewSessionDetailView(a.store, session, detail)
+	a.detailSessionUUID = session.UUID
 	a.showingDetail = true
+}
+
+func (a App) copyResumeCmd(uuid string) tea.Cmd {
+	return func() tea.Msg {
+		err := clipboard.Copy("claude --resume " + uuid)
+		return CopyResultMsg{Err: err}
+	}
 }
 
 func (a *App) openProjectDetail() {
@@ -379,7 +441,9 @@ func (a App) renderContent() string {
 
 func (a App) renderStatusBar() string {
 	var status string
-	if a.scanDone {
+	if a.notification != "" {
+		status = a.notification
+	} else if a.scanDone {
 		if a.historyCount > 0 {
 			status = fmt.Sprintf("Ready — %d sessions, %d prompts indexed", a.scanScanned, a.historyCount)
 		} else {
