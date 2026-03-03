@@ -96,6 +96,15 @@ func (m *Message) Usage() *TokenUsage {
 	return nil
 }
 
+// assistantContent returns all content blocks from an assistant message.
+func (m *Message) assistantContent() []ContentBlock {
+	m.ensureAssistant()
+	if m.parsedAssistant == nil {
+		return nil
+	}
+	return m.parsedAssistant.Content
+}
+
 // ToolUseBlocks returns all tool_use content blocks from an assistant message.
 func (m *Message) ToolUseBlocks() []ContentBlock {
 	m.ensureAssistant()
