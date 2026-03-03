@@ -40,6 +40,7 @@ type App struct {
 	sessionsView   *views.SessionsView
 	analyticsView  *views.AnalyticsView
 	agentsView     *views.AgentsView
+	toolsView      *views.ToolsView
 	detailView     *views.SessionDetailView
 	showingDetail  bool
 	projectsDir    string // path to ~/.claude/projects
@@ -55,6 +56,7 @@ func NewApp(s *store.Store, projectsDir string) App {
 		sessionsView:  views.NewSessionsView(s),
 		analyticsView: views.NewAnalyticsView(s),
 		agentsView:    views.NewAgentsView(s),
+		toolsView:     views.NewToolsView(s),
 		projectsDir:   projectsDir,
 	}
 }
@@ -106,6 +108,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Forward navigation keys to the active view
 			if a.activeTab == 2 {
 				a.sessionsView.Update(msg)
+			} else if a.activeTab == 5 {
+				a.toolsView.Update(msg)
 			}
 			return a, nil
 		case tea.KeyRunes:
@@ -121,6 +125,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "j", "k":
 				if a.activeTab == 2 {
 					a.sessionsView.Update(msg)
+				} else if a.activeTab == 5 {
+					a.toolsView.Update(msg)
 				}
 				return a, nil
 			}
@@ -217,6 +223,8 @@ func (a App) renderContent() string {
 		return a.analyticsView.View(a.width, a.height-4)
 	case 4:
 		return a.agentsView.View(a.width, a.height-4)
+	case 5:
+		return a.toolsView.View(a.width, a.height-4)
 	default:
 		return fmt.Sprintf("  %s view — coming soon", tabNames[a.activeTab])
 	}
