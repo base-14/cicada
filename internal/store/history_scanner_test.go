@@ -31,6 +31,13 @@ func TestScanHistory_ValidFile(t *testing.T) {
 	if entries[2].SessionID != "" {
 		t.Errorf("expected empty sessionId, got %s", entries[2].SessionID)
 	}
+	// Verify Prompt field is parsed from display
+	if entries[0].Prompt != "hello" {
+		t.Errorf("expected prompt 'hello', got %q", entries[0].Prompt)
+	}
+	if entries[1].Prompt != "world" {
+		t.Errorf("expected prompt 'world', got %q", entries[1].Prompt)
+	}
 	// Verify timestamp: 1704067200000ms = 2024-01-01 00:00:00 UTC
 	if entries[0].Timestamp.UTC().Year() != 2024 {
 		t.Errorf("expected year 2024, got %d", entries[0].Timestamp.UTC().Year())

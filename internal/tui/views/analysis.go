@@ -54,6 +54,7 @@ type analysisStyles struct {
 	label    lipgloss.Style
 	value    lipgloss.Style
 	accent   lipgloss.Style
+	border   lipgloss.Style
 }
 
 func newAnalysisStyles() analysisStyles {
@@ -62,6 +63,7 @@ func newAnalysisStyles() analysisStyles {
 		label:    lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")),
 		value:    lipgloss.NewStyle().Foreground(lipgloss.Color("#F9FAFB")).Bold(true),
 		accent:   lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B")).Bold(true),
+		border:   lipgloss.NewStyle().Foreground(lipgloss.Color("#374151")),
 	}
 }
 
@@ -113,17 +115,30 @@ func (v *AnalysisView) View(width, height int) string {
 		leftWidth := width/2 - 1
 		rightWidth := width - leftWidth - 2
 
-		leftCol := renderLeftColumn(insights, analytics, styles)
+		leftCol := renderLeftColumn(insights, analytics, styles, leftWidth)
 		rightCol := renderRightColumn(analytics, activityByDate, heatmap, rightWidth, styles)
 
 		leftStyled := lipgloss.NewStyle().Width(leftWidth).Render(leftCol)
 		rightStyled := lipgloss.NewStyle().Width(rightWidth).Render(rightCol)
 
-		columns := lipgloss.JoinHorizontal(lipgloss.Top, leftStyled, "  ", rightStyled)
+		// Build a vertical separator line matching the taller column height
+		leftLines := strings.Count(leftStyled, "\n")
+		rightLines := strings.Count(rightStyled, "\n")
+		sepHeight := leftLines
+		if rightLines > sepHeight {
+			sepHeight = rightLines
+		}
+		if sepHeight < 1 {
+			sepHeight = 1
+		}
+		sepLine := styles.border.Render("│")
+		sep := strings.Join(repeatStr(sepLine, sepHeight), "\n")
+
+		columns := lipgloss.JoinHorizontal(lipgloss.Top, leftStyled, " "+sep+" ", rightStyled)
 		content = header + "\n" + columns
 	} else {
 		content = header + "\n" +
-			renderLeftColumn(insights, analytics, styles) +
+			renderLeftColumn(insights, analytics, styles, width) +
 			renderRightColumnContent(analytics, activityByDate, heatmap, width, styles)
 	}
 
@@ -170,9 +185,17 @@ func renderSummaryHeader(analytics *model.Analytics, earliest time.Time, s analy
 	return b.String()
 }
 
-// renderLeftColumn renders text-heavy stats: Streaks, Personal Bests, Trends, Work Mode, Fun Stats.
-func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s analysisStyles) string {
+// renderLeftColumn renders text-heavy stats: Streaks, Personal Bests, Trends, Work Mode, Totals.
+func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s analysisStyles, colWidth int) string {
 	var b strings.Builder
+
+	hr := func() {
+		w := colWidth
+		if w < 4 {
+			w = 40
+		}
+		b.WriteString("  " + s.border.Render(strings.Repeat("─", w-4)) + "\n")
+	}
 
 	// Streaks
 	b.WriteString("  " + s.subtitle.Render("Streaks") + "\n")
@@ -181,7 +204,7 @@ func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s ana
 		s.label.Render("Longest Streak:"), s.accent.Render(fmt.Sprintf("%d days", insights.LongestStreak)),
 		s.label.Render("Active Days:"), s.value.Render(fmt.Sprintf("%d", insights.ActiveDays)),
 	)
-	b.WriteString("\n")
+	hr()
 
 	// Personal Bests
 	b.WriteString("  " + s.subtitle.Render("Personal Bests") + "\n")
@@ -216,7 +239,7 @@ func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s ana
 			insights.FavoriteToolCount,
 		)
 	}
-	b.WriteString("\n")
+	hr()
 
 	// Trends
 	b.WriteString("  " + s.subtitle.Render("Trends") + "\n")
@@ -225,27 +248,69 @@ func renderLeftColumn(insights model.Insights, analytics *model.Analytics, s ana
 		s.label.Render("Last Week:"), s.value.Render(fmt.Sprintf("%d sessions", insights.SessionsLastWeek)),
 		s.label.Render("Avg Duration:"), s.value.Render(formatDuration(insights.AvgDuration)),
 	)
-	b.WriteString("\n")
+	hr()
 
 	// Work Mode
 	totalWork := analytics.WorkModeExplore + analytics.WorkModeBuild + analytics.WorkModeTest
 	if totalWork > 0 {
 		b.WriteString("  " + s.subtitle.Render("Work Mode") + "\n")
-		fmt.Fprintf(&b, "  Exploration %d%%    Building %d%%    Testing %d%%\n\n",
+		fmt.Fprintf(&b, "  Exploration %d%%    Building %d%%    Testing %d%%\n",
 			analytics.WorkModeExplore*100/totalWork,
 			analytics.WorkModeBuild*100/totalWork,
 			analytics.WorkModeTest*100/totalWork,
 		)
+		hr()
 	}
 
-	// Fun Stats
-	b.WriteString("  " + s.subtitle.Render("Fun Stats") + "\n")
+	// Totals
+	b.WriteString("  " + s.subtitle.Render("Totals") + "\n")
 	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s    %s %s\n",
 		s.label.Render("Questions Asked:"), s.value.Render(fmt.Sprintf("%d", insights.TotalQuestions)),
 		s.label.Render("Tool Calls:"), s.value.Render(fmt.Sprintf("%d", insights.TotalToolCalls)),
 		s.label.Render("Unique Tools:"), s.value.Render(fmt.Sprintf("%d", insights.UniqueTools)),
 		s.label.Render("Git Branches:"), s.value.Render(fmt.Sprintf("%d", insights.UniqueBranches)),
 	)
+	if insights.AvgPromptWords > 0 {
+		fmt.Fprintf(&b, "  %s %s    %s %s\n",
+			s.label.Render("Avg Prompt:"), s.value.Render(fmt.Sprintf("%.1f words", insights.AvgPromptWords)),
+			s.label.Render("P95 Prompt:"), s.value.Render(fmt.Sprintf("%d words", insights.P95PromptWords)),
+		)
+	}
+	if len(insights.TopWords) > 0 {
+		words := make([]string, len(insights.TopWords))
+		for i, wc := range insights.TopWords {
+			words[i] = wc.Word
+		}
+		fmt.Fprintf(&b, "  %s %s\n", s.label.Render("Top Words:"), s.value.Render(strings.Join(words, ", ")))
+	}
+
+	// Models
+	if len(analytics.ModelsUsed) > 0 {
+		hr()
+		b.WriteString("  " + s.subtitle.Render("Models") + "\n  ")
+		type modelCount struct {
+			name  string
+			count int
+		}
+		var models []modelCount
+		total := 0
+		for name, count := range analytics.ModelsUsed {
+			models = append(models, modelCount{name, count})
+			total += count
+		}
+		sort.Slice(models, func(i, j int) bool {
+			return models[i].count > models[j].count
+		})
+		if total > 0 {
+			for i, m := range models {
+				if i > 0 {
+					b.WriteString("  ")
+				}
+				fmt.Fprintf(&b, "%s %d%%", s.value.Render(m.name), m.count*100/total)
+			}
+		}
+		b.WriteString("\n")
+	}
 
 	return b.String()
 }
@@ -290,33 +355,6 @@ func renderRightColumnContent(analytics *model.Analytics, activityByDate map[str
 		b.WriteString("  " + strings.ReplaceAll(components.BarChart(topTools, chartWidth), "\n", "\n  ") + "\n\n")
 	}
 
-	// Models
-	if len(analytics.ModelsUsed) > 0 {
-		b.WriteString("  " + s.subtitle.Render("Models") + "\n  ")
-		type modelCount struct {
-			name  string
-			count int
-		}
-		var models []modelCount
-		total := 0
-		for name, count := range analytics.ModelsUsed {
-			models = append(models, modelCount{name, count})
-			total += count
-		}
-		sort.Slice(models, func(i, j int) bool {
-			return models[i].count > models[j].count
-		})
-		if total > 0 {
-			for i, m := range models {
-				if i > 0 {
-					b.WriteString("  ")
-				}
-				fmt.Fprintf(&b, "%s %d%%", s.value.Render(m.name), m.count*100/total)
-			}
-		}
-		b.WriteString("\n\n")
-	}
-
 	return b.String()
 }
 
@@ -352,6 +390,15 @@ func topNToolItems(toolsUsed map[string]int, n int) []components.BarItem {
 		items[i] = components.BarItem{Label: s.key, Value: s.val}
 	}
 	return items
+}
+
+// repeatStr returns a slice containing s repeated n times.
+func repeatStr(s string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = s
+	}
+	return out
 }
 
 // buildHeatmapFromSessions computes a [7][24]int matrix from session start times.

@@ -66,7 +66,7 @@ func TestComputeInsights_PersonalBests(t *testing.T) {
 	}
 }
 
-func TestComputeInsights_FunStats(t *testing.T) {
+func TestComputeInsights_Totals(t *testing.T) {
 	now := time.Now().Truncate(24 * time.Hour)
 	sessions := []*SessionMeta{
 		makeSession("s1", now, time.Hour, map[string]int{"Read": 5, "Edit": 3}, 10, []string{"main", "feat"}),
@@ -198,6 +198,33 @@ func TestComputeInsights_WithHistory_EnrichesStreaks(t *testing.T) {
 
 	if insights.CurrentStreak != 3 {
 		t.Errorf("expected current streak 3 (today + 2 from history), got %d", insights.CurrentStreak)
+	}
+}
+
+func TestComputeInsights_TopWords(t *testing.T) {
+	now := time.Date(2026, 3, 3, 12, 0, 0, 0, time.Local)
+	sessions := []*SessionMeta{
+		makeSession("s1", now, time.Hour, map[string]int{"Read": 1}, 5, nil),
+	}
+	history := &HistoryStats{
+		TotalPrompts:  5,
+		ActiveDays:    map[string]bool{now.Format("2006-01-02"): true},
+		PromptsByDate: map[string]int{},
+		HourCounts:    map[int]int{},
+		TopWords: []WordCount{
+			{Word: "authentication", Count: 10},
+			{Word: "login", Count: 7},
+			{Word: "fix", Count: 5},
+		},
+	}
+
+	insights := ComputeInsights(sessions, history)
+
+	if len(insights.TopWords) != 3 {
+		t.Fatalf("expected 3 top words, got %d", len(insights.TopWords))
+	}
+	if insights.TopWords[0].Word != "authentication" {
+		t.Errorf("expected first top word 'authentication', got %q", insights.TopWords[0].Word)
 	}
 }
 

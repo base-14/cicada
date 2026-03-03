@@ -13,6 +13,7 @@ type historyLine struct {
 	Timestamp int64  `json:"timestamp"`
 	Project   string `json:"project"`
 	SessionID string `json:"sessionId"`
+	Display   string `json:"display"`
 }
 
 // ScanHistory reads and parses a history.jsonl file into HistoryEntry slices.
@@ -37,6 +38,7 @@ func ScanHistory(path string) ([]model.HistoryEntry, error) {
 			Timestamp: time.UnixMilli(hl.Timestamp),
 			Project:   hl.Project,
 			SessionID: hl.SessionID,
+			Prompt:    hl.Display,
 		})
 	}
 	return entries, nil

@@ -25,11 +25,14 @@ type Insights struct {
 	SessionsLastWeek int
 	AvgDuration      time.Duration
 
-	// Fun stats
+	// Totals
 	TotalQuestions int // sum of MessageCount
 	TotalToolCalls int
 	UniqueTools    int
 	UniqueBranches int
+	TopWords       []WordCount
+	AvgPromptWords float64
+	P95PromptWords int
 }
 
 // ComputeInsights calculates feel-good analytics from a slice of sessions.
@@ -103,6 +106,9 @@ func ComputeInsights(sessions []*SessionMeta, history *HistoryStats) Insights {
 			hourCounts[hour] += count
 		}
 		ins.TotalQuestions = history.TotalPrompts
+		ins.TopWords = history.TopWords
+		ins.AvgPromptWords = history.AvgPromptWords
+		ins.P95PromptWords = history.P95PromptWords
 	}
 
 	// Active days
