@@ -32,4 +32,5 @@ type SessionDetail struct {
 	Timeline     []TimelineEvent
 	FileActivity []FileOp
 	Subagents    []SubagentMeta
+	ChatMessages []ChatMessage
 }
