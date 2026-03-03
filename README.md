@@ -1,5 +1,16 @@
 # 🦗 cicada
 
+<p align="center">
+  <img src="docs/img/cicada-2.png" alt="cicada" width="200">
+</p>
+
+<p align="center">
+  <a href="https://github.com/base-14/cicada/actions/workflows/ci.yml"><img src="https://github.com/base-14/cicada/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/base-14/cicada/releases/latest"><img src="https://img.shields.io/github/v/release/base-14/cicada" alt="Release"></a>
+  <a href="https://github.com/base-14/cicada/blob/main/LICENSE"><img src="https://img.shields.io/github/license/base-14/cicada" alt="License"></a>
+  <a href="https://goreportcard.com/report/github.com/base-14/cicada"><img src="https://goreportcard.com/badge/github.com/base-14/cicada" alt="Go Report Card"></a>
+</p>
+
 TUI analytics dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions.
 
 Reads your local `~/.claude/` data and shows session history, tool usage, project analytics, and more — all in the terminal. No server, no database — everything stays local.
