@@ -10,12 +10,12 @@ import (
 var (
 	// Heat colors — cool to hot gradient.
 	heatColors = []string{"", "#1E3A5F", "#2563EB", "#F59E0B", "#EF4444"}
-	heatBlocks = []string{" ", "░", "▒", "▓", "█"}
+	heatBlocks = []string{"  ", "░░", "▒▒", "▓▓", "██"}
 	dayLabels  = []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
 )
 
 // Heatmap renders a 7x24 ASCII heatmap (rows = days Mon-Sun, columns = hours 0-23).
-// Uses colored block characters based on intensity.
+// Uses double-width colored block characters for readability.
 func Heatmap(data [7][24]int) string {
 	maxVal := 0
 	for day := range 7 {
@@ -31,18 +31,16 @@ func Heatmap(data [7][24]int) string {
 
 	var b strings.Builder
 
-	// Header with hour labels
+	// Header with hour labels — every 3 hours, each cell is 2 chars wide
 	b.WriteString("     ")
 	for h := range 24 {
 		if h%3 == 0 {
-			b.WriteString(dimStyle.Render(fmt.Sprintf("%-3d", h)))
-		} else if (h-1)%3 != 0 && (h-2)%3 != 0 {
-			b.WriteString("   ")
+			b.WriteString(dimStyle.Render(fmt.Sprintf("%-6d", h)))
 		}
 	}
 	b.WriteString("\n")
 
-	// Data rows
+	// Data rows — double-width cells
 	for day := range 7 {
 		b.WriteString(labelStyle.Render(fmt.Sprintf(" %s ", dayLabels[day])))
 		for hour := range 24 {
@@ -57,7 +55,7 @@ func Heatmap(data [7][24]int) string {
 	return b.String()
 }
 
-// coloredBlock returns a colored block character based on value relative to max.
+// coloredBlock returns a double-width colored block based on value relative to max.
 func coloredBlock(val, maxVal int) string {
 	if val == 0 {
 		return heatBlocks[0]

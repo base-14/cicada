@@ -34,8 +34,8 @@ func BarChart(items []BarItem, maxWidth int) string {
 	}
 
 	barWidth := maxWidth - maxLabel - 10
-	if barWidth < 5 {
-		barWidth = 5
+	if barWidth < 10 {
+		barWidth = 10
 	}
 
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF"))
@@ -43,20 +43,29 @@ func BarChart(items []BarItem, maxWidth int) string {
 
 	var lines []string
 	for i, item := range items {
-		var bar int
+		// Use half-block resolution: each character position = 2 units
+		var units int
 		if maxVal > 0 {
-			bar = item.Value * barWidth / maxVal
+			units = item.Value * barWidth * 2 / maxVal
 		}
-		if bar < 1 && item.Value > 0 {
-			bar = 1
+		if units < 1 && item.Value > 0 {
+			units = 1
 		}
+		fullBlocks := units / 2
+		halfBlock := units % 2
+
 		color := barColors[i%len(barColors)]
 		barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
 
+		barStr := strings.Repeat("█", fullBlocks)
+		if halfBlock == 1 {
+			barStr += "▌"
+		}
+
 		label := labelStyle.Render(fmt.Sprintf("%-*s", maxLabel, item.Label))
-		barStr := barStyle.Render(strings.Repeat("█", bar))
+		coloredBar := barStyle.Render(barStr)
 		count := countStyle.Render(fmt.Sprintf("%d", item.Value))
-		line := fmt.Sprintf("%s %s %s", label, barStr, count)
+		line := fmt.Sprintf("%s %s %s", label, coloredBar, count)
 		lines = append(lines, line)
 	}
 

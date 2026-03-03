@@ -130,9 +130,6 @@ func (v *AnalysisView) View(width, height int) string {
 		b.WriteString("  " + subtitleStyle.Render("Sessions (last 30 days)") + "\n")
 		sparkData := buildSparkData(analytics.SessionsByDate, 30)
 		sparkWidth := width - 4
-		if sparkWidth > 60 {
-			sparkWidth = 60
-		}
 		if sparkWidth < 10 {
 			sparkWidth = 10
 		}
@@ -153,9 +150,6 @@ func (v *AnalysisView) View(width, height int) string {
 		b.WriteString("  " + subtitleStyle.Render("Top Tools") + "\n")
 		topTools := topNToolItems(analytics.ToolsUsed, 10)
 		chartWidth := width - 4
-		if chartWidth > 60 {
-			chartWidth = 60
-		}
 		b.WriteString("  " + strings.ReplaceAll(components.BarChart(topTools, chartWidth), "\n", "\n  ") + "\n\n")
 	}
 
