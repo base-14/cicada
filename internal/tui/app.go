@@ -141,14 +141,14 @@ func (a App) renderDashboard() string {
 
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s %s    %s %s    %s %s\n",
+	fmt.Fprintf(&b, "  %s %s    %s %s    %s %s\n",
 		a.styles.StatLabel.Render("Sessions:"),
 		a.styles.StatValue.Render(fmt.Sprintf("%d", analytics.TotalSessions)),
 		a.styles.StatLabel.Render("Tokens In:"),
 		a.styles.StatValue.Render(formatTokens(analytics.TotalTokensIn)),
 		a.styles.StatLabel.Render("Projects:"),
 		a.styles.StatValue.Render(fmt.Sprintf("%d", analytics.ActiveProjects)),
-	))
+	)
 	return b.String()
 }
 
