@@ -37,6 +37,16 @@ cicada
 
 Navigate with arrow keys or vim bindings (`h/j/k/l`). Press `?` for help, `/` to filter, `Enter` to drill in, `Esc` to go back, `y` to copy `claude --resume <id>` to clipboard.
 
+### Export / Import Sessions
+
+Share sessions between machines or with teammates:
+
+- `e` — Export selected session as a zip
+- `E` — Export all visible sessions (respects active filter)
+- `i` — Import session(s) from a zip file
+
+Exported zips contain the raw JSONL session file plus a manifest. Imported sessions are fully Claude Code-compatible — recipients can browse them in cicada and resume with `claude --resume`.
+
 ## What it shows
 
 ```
@@ -60,6 +70,7 @@ cicada
 │
 ├── Sessions
 │   ├── All sessions with project, duration, messages, cost
+│   ├── Export / import sessions (e/E/i)
 │   └── Session detail (Enter to drill in)
 │       ├── Chat — full conversation: user prompts & assistant responses
 │       ├── Overview — duration, message count, model, cost
