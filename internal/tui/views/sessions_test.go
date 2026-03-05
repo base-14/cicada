@@ -225,3 +225,31 @@ func TestSessionsView_SelectedSession(t *testing.T) {
 		t.Errorf("expected selected session 'cool-fox', got %q", selected.Slug)
 	}
 }
+
+func TestVisibleSessions(t *testing.T) {
+	s := store.New()
+	s.Add(&model.SessionMeta{
+		UUID: "a", Slug: "alpha", ProjectPath: "-p",
+		StartTime: time.Now(),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{},
+	})
+	s.Add(&model.SessionMeta{
+		UUID: "b", Slug: "beta", ProjectPath: "-p",
+		StartTime: time.Now().Add(time.Hour),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{},
+	})
+
+	v := NewSessionsView(s)
+	rows := v.VisibleSessions()
+	if len(rows) != 2 {
+		t.Errorf("VisibleSessions() = %d rows, want 2", len(rows))
+	}
+	// Should be sorted newest first
+	if rows[0].Slug != "beta" {
+		t.Errorf("expected first visible session 'beta', got %q", rows[0].Slug)
+	}
+}

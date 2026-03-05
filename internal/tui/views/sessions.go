@@ -91,6 +91,12 @@ func (v *SessionsView) SelectedSession() *model.SessionMeta {
 	return v.rows[v.selected]
 }
 
+// VisibleSessions returns all currently visible (filtered) sessions.
+func (v *SessionsView) VisibleSessions() []*model.SessionMeta {
+	v.refreshRows()
+	return v.rows
+}
+
 // View renders the sessions list.
 func (v *SessionsView) View(width, height int) string {
 	v.refreshRows()
