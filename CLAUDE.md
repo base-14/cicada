@@ -54,6 +54,10 @@ cicada/
 │       └── views/       # Top-level views
 ```
 
+## Git
+
+- Never push to remote unless explicitly told to do so. Let the user push.
+
 ## Conventions
 
 - Keep packages small and focused — no circular dependencies.
