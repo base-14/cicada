@@ -42,10 +42,12 @@ func TestExportSession(t *testing.T) {
 		t.Fatalf("ExportSession() error: %v", err)
 	}
 
-	// Verify filename format: {slug}-{uuid-first-8}.zip
-	expectedFilename := slug + "-" + uuid[:8] + ".zip"
-	if filename != expectedFilename {
-		t.Errorf("filename = %q, want %q", filename, expectedFilename)
+	// Verify filename format: YYYY-MM-DDTHHMM-{slug}-{uuid-first-8}.zip
+	if !strings.HasSuffix(filename, "-"+slug+"-"+uuid[:8]+".zip") {
+		t.Errorf("filename = %q, want suffix %q", filename, "-"+slug+"-"+uuid[:8]+".zip")
+	}
+	if len(filename) < 16 || filename[4] != '-' || filename[7] != '-' || filename[10] != 'T' {
+		t.Errorf("filename = %q, want datetime prefix YYYY-MM-DDTHHMM-...", filename)
 	}
 
 	// Open the zip and verify contents.
@@ -171,9 +173,13 @@ func TestExportAll(t *testing.T) {
 		t.Fatalf("ExportAll() error: %v", err)
 	}
 
-	// Verify filename format: cicada-export-YYYY-MM-DD.zip
+	// Verify filename format: cicada-export-YYYY-MM-DDTHHMM.zip
 	if !strings.HasPrefix(filename, "cicada-export-") || !strings.HasSuffix(filename, ".zip") {
 		t.Errorf("unexpected filename format: %q", filename)
+	}
+	// Should contain time component
+	if !strings.Contains(filename, "T") {
+		t.Errorf("filename = %q, want datetime with T separator", filename)
 	}
 
 	// Open zip and verify contents.

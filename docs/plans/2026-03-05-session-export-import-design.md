@@ -118,6 +118,10 @@ All errors surface in the status bar — no modal dialogs.
 - Export: file not found, write permission errors
 - Import: invalid zip, missing manifest, corrupt JSONL, target directory not writable
 
+## Future Work
+
+- **Git-friendly export format**: Export JSONL + sidecar `.manifest.json` as plain text files (no zip) for committing sessions to git repos. Text-based, diffable, no repo bloat.
+
 ## Testing
 
 - `internal/transfer/` — unit tests for:

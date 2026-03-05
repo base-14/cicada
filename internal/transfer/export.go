@@ -33,7 +33,13 @@ func ExportSession(claudeDir string, meta *model.SessionMeta, outputDir string) 
 		meta.UUID + ".jsonl": data,
 	}
 
-	filename := meta.Slug + "-" + meta.UUID[:8] + ".zip"
+	now := time.Now()
+	slug := meta.Slug
+	if slug == "" {
+		slug = meta.UUID[:8]
+	}
+	ts := now.Format("2006-01-02T1504")
+	filename := fmt.Sprintf("%s-%s-%s.zip", ts, slug, meta.UUID[:8])
 	zipPath := filepath.Join(outputDir, filename)
 
 	if err := writeZip(zipPath, manifest, files); err != nil {
@@ -76,7 +82,7 @@ func ExportAll(claudeDir string, metas []*model.SessionMeta, outputDir string) (
 		Sessions:   entries,
 	}
 
-	filename := "cicada-export-" + time.Now().Format("2006-01-02") + ".zip"
+	filename := "cicada-export-" + time.Now().Format("2006-01-02T1504") + ".zip"
 	zipPath := filepath.Join(outputDir, filename)
 
 	if err := writeZip(zipPath, manifest, files); err != nil {
