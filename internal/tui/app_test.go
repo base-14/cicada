@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/base-14/cicada/internal/model"
 	"github.com/base-14/cicada/internal/store"
+	"github.com/base-14/cicada/internal/tui/components"
 )
 
 func TestApp_InitialView(t *testing.T) {
@@ -396,6 +397,175 @@ func TestApp_StatusBarNoCopyHintOnOtherTabs(t *testing.T) {
 	bar := app.renderStatusBar()
 	if strings.Contains(bar, "y copy") {
 		t.Error("expected status bar NOT to contain 'y copy' on analysis tab")
+	}
+}
+
+func TestApp_ExportKeyBinding(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	s.Add(&model.SessionMeta{
+		UUID: "test-uuid", Slug: "test", ProjectPath: "-proj",
+		StartTime: now, EndTime: now.Add(time.Minute),
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{}, MessageCount: 5,
+	})
+
+	app := NewApp(s, "/tmp/test/projects")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 2
+	app.View()
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	if cmd == nil {
+		t.Error("expected command from 'e' on sessions tab")
+	}
+}
+
+func TestApp_ExportKeyIgnoredOnOtherTabs(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.activeTab = 0
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	if cmd != nil {
+		t.Error("expected no command from 'e' on non-sessions tab")
+	}
+}
+
+func TestApp_ImportKeyShowsInput(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.activeTab = 2
+
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	app = updated.(App)
+
+	if app.importInput == nil {
+		t.Error("expected importInput to be set after 'i'")
+	}
+	if !app.importInput.Active {
+		t.Error("expected importInput to be active")
+	}
+}
+
+func TestApp_ImportInputEscCancels(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.activeTab = 2
+
+	updated, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	app = updated.(App)
+
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	app = updated.(App)
+
+	if app.importInput != nil {
+		t.Error("expected importInput to be nil after Esc")
+	}
+}
+
+func TestApp_ExportResultSetsNotification(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	result, cmd := app.Update(ExportResultMsg{Filename: "test.zip"})
+	app = result.(App)
+
+	if app.notification != "Exported to test.zip" {
+		t.Errorf("notification = %q, want %q", app.notification, "Exported to test.zip")
+	}
+	if cmd == nil {
+		t.Error("expected tick command")
+	}
+}
+
+func TestApp_ExportResultErrorSetsNotification(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	result, _ := app.Update(ExportResultMsg{Err: fmt.Errorf("disk full")})
+	app = result.(App)
+
+	if !strings.Contains(app.notification, "Export failed") {
+		t.Errorf("notification = %q, want to contain 'Export failed'", app.notification)
+	}
+}
+
+func TestApp_ImportResultSetsNotification(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	result, _ := app.Update(ImportResultMsg{Count: 3, Metas: []*model.SessionMeta{}})
+	app = result.(App)
+
+	if app.notification != "Imported 3 sessions" {
+		t.Errorf("notification = %q, want %q", app.notification, "Imported 3 sessions")
+	}
+}
+
+func TestApp_ImportResultAddsToStore(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+
+	meta := &model.SessionMeta{
+		UUID: "imported-1", Slug: "imported", ProjectPath: "-p",
+		Models: map[string]int{}, ToolUsage: map[string]int{},
+		SkillsUsed: map[string]int{}, CommandsUsed: map[string]int{},
+		FileOps: map[string]int{},
+	}
+	_, _ = app.Update(ImportResultMsg{Count: 1, Metas: []*model.SessionMeta{meta}})
+
+	if s.Get("imported-1") == nil {
+		t.Error("expected imported session to be in store")
+	}
+}
+
+func TestApp_StatusBarShowsExportHint(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 120
+	app.height = 30
+	app.activeTab = 2
+
+	bar := app.renderStatusBar()
+	if !strings.Contains(bar, "e export") {
+		t.Error("expected status bar to contain 'e export'")
+	}
+	if !strings.Contains(bar, "i import") {
+		t.Error("expected status bar to contain 'i import'")
+	}
+}
+
+func TestApp_HelpOverlayContainsExportImport(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 40
+	app.showingHelp = true
+
+	view := app.View()
+	if !strings.Contains(view, "Export") {
+		t.Error("expected help to contain 'Export'")
+	}
+	if !strings.Contains(view, "Import") {
+		t.Error("expected help to contain 'Import'")
+	}
+}
+
+func TestApp_ImportRenderOverlay(t *testing.T) {
+	s := store.New()
+	app := NewApp(s, "")
+	app.width = 80
+	app.height = 30
+	app.activeTab = 2
+	app.importInput = components.NewTextInput("Import zip path: ")
+	app.importInput.Active = true
+
+	content := app.renderContent()
+	if !strings.Contains(content, "Import zip path:") {
+		t.Error("expected content to show import input prompt")
 	}
 }
 
