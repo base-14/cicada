@@ -180,7 +180,8 @@ func TestComputeInsights_WithHistory_EnrichesActiveDays(t *testing.T) {
 }
 
 func TestComputeInsights_WithHistory_EnrichesStreaks(t *testing.T) {
-	now := time.Date(2026, 3, 3, 12, 0, 0, 0, time.Local)
+	// Use time.Now() so "today" in the test matches "today" in ComputeInsights.
+	now := time.Now().Truncate(24 * time.Hour).Add(12 * time.Hour)
 	sessions := []*SessionMeta{
 		makeSession("s1", now, time.Hour, map[string]int{}, 1, nil),
 	}
