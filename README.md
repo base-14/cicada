@@ -45,7 +45,7 @@ Share sessions between machines or with teammates:
 - `E` — Export all visible sessions (respects active filter)
 - `i` — Import session(s) from a zip file
 
-Exported zips contain the raw JSONL session file plus a manifest. Imported sessions are fully Claude Code-compatible — recipients can browse them in cicada and resume with `claude --resume`.
+Exported zips are saved to the directory you launched cicada from. They contain the raw JSONL session file plus a manifest. Imported sessions are fully Claude Code-compatible — recipients can browse them in cicada and resume with `claude --resume`.
 
 ## What it shows
 
