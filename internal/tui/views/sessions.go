@@ -129,10 +129,27 @@ func (v *SessionsView) View(width, height int) string {
 		maxRows = 1
 	}
 
-	for i, row := range v.rows {
-		if i >= maxRows {
-			break
+	// Calculate scrolling window
+	start := 0
+	end := len(v.rows)
+
+	if len(v.rows) > maxRows {
+		// Keep selected item in view with some context
+		if v.selected >= maxRows {
+			start = v.selected - maxRows + 1
 		}
+		end = start + maxRows
+		if end > len(v.rows) {
+			end = len(v.rows)
+			start = end - maxRows
+			if start < 0 {
+				start = 0
+			}
+		}
+	}
+
+	for i := start; i < end; i++ {
+		row := v.rows[i]
 
 		slug := row.Slug
 		if slug == "" {
