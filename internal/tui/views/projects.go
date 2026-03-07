@@ -134,7 +134,32 @@ func (v *ProjectsView) View(width, height int) string {
 	b.WriteString(header + "\n")
 	b.WriteString("  " + strings.Repeat("\u2500", 82) + "\n")
 
-	for i, row := range rows {
+	// Calculate scrolling window
+	maxRows := height - 5 // header + separator + padding
+	if maxRows < 1 {
+		maxRows = 1
+	}
+
+	start := 0
+	end := len(rows)
+
+	if len(rows) > maxRows {
+		// Keep selected item in view with some context
+		if v.selected >= maxRows {
+			start = v.selected - maxRows + 1
+		}
+		end = start + maxRows
+		if end > len(rows) {
+			end = len(rows)
+			start = end - maxRows
+			if start < 0 {
+				start = 0
+			}
+		}
+	}
+
+	for i := start; i < end; i++ {
+		row := rows[i]
 		name := row.Name
 		if len(name) > 50 {
 			name = "..." + name[len(name)-47:]

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -251,5 +252,157 @@ func TestVisibleSessions(t *testing.T) {
 	// Should be sorted newest first
 	if rows[0].Slug != "beta" {
 		t.Errorf("expected first visible session 'beta', got %q", rows[0].Slug)
+	}
+}
+
+// TestSessionsView_Scrolling verifies that when there are more sessions than can fit
+// on screen, the view implements a scrolling window that follows the selected item.
+func TestSessionsView_Scrolling(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	// Add 50 sessions to test scrolling
+	for i := range 50 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("session-%d", i),
+			ProjectPath:  "-p",
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	view := NewSessionsView(s)
+	// Small height to force scrolling (only 5 visible rows)
+	content := view.View(100, 10)
+
+	// Should show first 5 sessions (newest first)
+	lines := strings.Split(content, "\n")
+	dataLines := 0
+	for _, line := range lines {
+		if strings.Contains(line, ">") || (strings.HasPrefix(line, "  ") && len(strings.TrimSpace(line)) > 0 && !strings.Contains(line, "Slug") && !strings.Contains(line, "\u2500")) {
+			dataLines++
+		}
+	}
+
+	if dataLines > 5 {
+		t.Errorf("expected at most 5 visible rows, got %d", dataLines)
+	}
+
+	// Navigate down 10 times
+	for range 10 {
+		view.Update(tea.KeyMsg{Type: tea.KeyDown})
+	}
+
+	// Should now show sessions around index 10
+	content = view.View(100, 10)
+
+	// The selected session should be visible
+	selected := view.SelectedSession()
+	if selected == nil {
+		t.Fatal("expected non-nil selected session")
+	}
+	if !strings.Contains(content, selected.Slug) {
+		t.Errorf("expected selected session %q to be visible after scrolling", selected.Slug)
+	}
+}
+
+// TestSessionsView_ScrollingVimKeys verifies that vim-style j/k keys work for
+// scrolling through sessions and that the selected item remains visible.
+func TestSessionsView_ScrollingVimKeys(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	// Add 30 sessions
+	for i := range 30 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("session-%d", i),
+			ProjectPath:  "-p",
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	view := NewSessionsView(s)
+
+	// Navigate down with 'j' key
+	for range 15 {
+		view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	}
+
+	if view.selected != 15 {
+		t.Errorf("expected selected=15 after 15 'j' presses, got %d", view.selected)
+	}
+
+	// Navigate up with 'k' key
+	for range 5 {
+		view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	}
+
+	if view.selected != 10 {
+		t.Errorf("expected selected=10 after 5 'k' presses, got %d", view.selected)
+	}
+
+	// Verify selected session is visible
+	content := view.View(100, 10)
+	selected := view.SelectedSession()
+	if !strings.Contains(content, selected.Slug) {
+		t.Errorf("expected selected session to be visible after vim key navigation")
+	}
+}
+
+// TestSessionsView_ScrollingBounds verifies that scrolling is properly bounded
+// at the top and bottom of the list, and that the selected item is always visible.
+func TestSessionsView_ScrollingBounds(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+
+	// Add 20 sessions
+	for i := range 20 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("session-%d", i),
+			ProjectPath:  "-p",
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	view := NewSessionsView(s)
+
+	// Try to scroll up from the top
+	view.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if view.selected != 0 {
+		t.Errorf("expected selected=0 when scrolling up from top, got %d", view.selected)
+	}
+
+	// Scroll to bottom
+	for range 25 {
+		view.Update(tea.KeyMsg{Type: tea.KeyDown})
+	}
+
+	// Should be clamped to last item (19)
+	if view.selected != 19 {
+		t.Errorf("expected selected=19 at bottom, got %d", view.selected)
+	}
+
+	// Verify last session is visible
+	content := view.View(100, 10)
+	selected := view.SelectedSession()
+	if !strings.Contains(content, selected.Slug) {
+		t.Errorf("expected last session to be visible when scrolled to bottom")
 	}
 }
