@@ -18,6 +18,7 @@ type SessionsView struct {
 	selected int
 	rows     []*model.SessionMeta // cached sorted list
 	filter   *components.Filter
+	lastKey  string               // track last key for gg detection
 }
 
 // NewSessionsView creates a new SessionsView.
@@ -50,17 +51,19 @@ func (v *SessionsView) Update(msg tea.KeyMsg) {
 	// Forward to filter first
 	if v.filter.Update(msg) {
 		v.selected = 0
+		v.lastKey = ""
 		return
 	}
 
 	v.refreshRows()
+	maxIdx := len(v.rows) - 1
 	switch msg.Type {
 	case tea.KeyUp:
 		if v.selected > 0 {
 			v.selected--
 		}
 	case tea.KeyDown:
-		if v.selected < len(v.rows)-1 {
+		if v.selected < maxIdx {
 			v.selected++
 		}
 	case tea.KeyRunes:
@@ -70,16 +73,33 @@ func (v *SessionsView) Update(msg tea.KeyMsg) {
 				v.selected--
 			}
 		case "j":
-			if v.selected < len(v.rows)-1 {
+			if v.selected < maxIdx {
 				v.selected++
+			}
+		case "g":
+			if v.lastKey == "g" {
+				v.selected = 0
+			} else {
+				v.lastKey = "g"
+				return
+			}
+		case "G":
+			if maxIdx >= 0 {
+				v.selected = maxIdx
 			}
 		}
 	}
+	v.lastKey = ""
 }
 
 // FilterActive returns true if the filter input is active.
 func (v *SessionsView) FilterActive() bool {
 	return v.filter.Active
+}
+
+// Selected returns the current selected index.
+func (v *SessionsView) Selected() int {
+	return v.selected
 }
 
 // SelectedSession returns the currently selected session, or nil.
