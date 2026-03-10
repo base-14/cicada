@@ -595,3 +595,165 @@ func TestApp_YankKeyIgnoredWhenFilterActive(t *testing.T) {
 		t.Error("expected 'y' to be forwarded to filter, not trigger copy")
 	}
 }
+
+// TestApp_SessionsGGJumpsToStart verifies that pressing 'g' twice on the Sessions tab
+// routes through app.Update() and jumps the selection to the first item.
+// This complements TestSessionsView_GGJumpsToStart in sessions_test.go, which tests
+// the view's key handling in isolation. This test catches routing bugs in app.Update()
+// where keys may not be forwarded to the view at all.
+func TestApp_SessionsGGJumpsToStart(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	for i := range 5 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("session-%d", i),
+			ProjectPath:  "-p",
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	app := NewApp(s, "")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 2
+	app.View() // populate rows
+
+	// Navigate down
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyDown})
+	app = updated.(App)
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyDown})
+	app = updated.(App)
+
+	// Press gg
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	app = updated.(App)
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	app = updated.(App)
+
+	if app.sessionsView.Selected() != 0 {
+		t.Errorf("expected selected=0 after gg, got %d", app.sessionsView.Selected())
+	}
+}
+
+// TestApp_SessionsGJumpsToEnd verifies that pressing 'G' on the Sessions tab
+// routes through app.Update() and jumps the selection to the last item.
+// This complements TestSessionsView_GJumpsToEnd in sessions_test.go, which tests
+// the view's key handling in isolation. This test catches routing bugs in app.Update()
+// where keys may not be forwarded to the view at all.
+func TestApp_SessionsGJumpsToEnd(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	for i := range 5 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("session-%d", i),
+			ProjectPath:  "-p",
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	app := NewApp(s, "")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 2
+	app.View() // populate rows
+
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	app = updated.(App)
+
+	if app.sessionsView.Selected() != 4 {
+		t.Errorf("expected selected=4 after G, got %d", app.sessionsView.Selected())
+	}
+}
+
+// TestApp_ProjectsGGJumpsToStart verifies that pressing 'g' twice on the Projects tab
+// routes through app.Update() and jumps the selection to the first item.
+// This complements TestProjectsView_GGJumpsToStart in projects_test.go, which tests
+// the view's key handling in isolation. This test catches routing bugs in app.Update()
+// where keys may not be forwarded to the view at all.
+func TestApp_ProjectsGGJumpsToStart(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	for i := range 5 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("s%d", i),
+			ProjectPath:  fmt.Sprintf("-p%d", i),
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	app := NewApp(s, "")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 1
+	app.View() // populate lastRows
+
+	// Navigate down
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyDown})
+	app = updated.(App)
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyDown})
+	app = updated.(App)
+
+	// Press gg
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	app = updated.(App)
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	app = updated.(App)
+
+	if app.projectsView.Selected() != 0 {
+		t.Errorf("expected selected=0 after gg, got %d", app.projectsView.Selected())
+	}
+}
+
+// TestApp_ProjectsGJumpsToEnd verifies that pressing 'G' on the Projects tab
+// routes through app.Update() and jumps the selection to the last item.
+// This complements TestProjectsView_GJumpsToEnd in projects_test.go, which tests
+// the view's key handling in isolation. This test catches routing bugs in app.Update()
+// where keys may not be forwarded to the view at all.
+func TestApp_ProjectsGJumpsToEnd(t *testing.T) {
+	s := store.New()
+	now := time.Now()
+	for i := range 5 {
+		s.Add(&model.SessionMeta{
+			UUID:         fmt.Sprintf("u%d", i),
+			Slug:         fmt.Sprintf("s%d", i),
+			ProjectPath:  fmt.Sprintf("-p%d", i),
+			StartTime:    now.Add(time.Duration(i) * time.Hour),
+			Models:       map[string]int{},
+			ToolUsage:    map[string]int{},
+			SkillsUsed:   map[string]int{},
+			CommandsUsed: map[string]int{},
+			FileOps:      map[string]int{},
+		})
+	}
+
+	app := NewApp(s, "")
+	updated, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = updated.(App)
+	app.activeTab = 1
+	app.View() // populate lastRows
+
+	updated, _ = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	app = updated.(App)
+
+	if app.projectsView.Selected() != 4 {
+		t.Errorf("expected selected=4 after G, got %d", app.projectsView.Selected())
+	}
+}

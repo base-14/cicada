@@ -24,6 +24,7 @@ type ProjectsView struct {
 	selected int
 	filter   *components.Filter
 	lastRows []ProjectRow
+	lastKey  string // track last key for gg detection
 }
 
 // NewProjectsView creates a new ProjectsView.
@@ -36,9 +37,11 @@ func (v *ProjectsView) Update(msg tea.KeyMsg) {
 	// Forward to filter first
 	if v.filter.Update(msg) {
 		v.selected = 0
+		v.lastKey = ""
 		return
 	}
 
+	maxIdx := len(v.lastRows) - 1
 	switch msg.Type {
 	case tea.KeyUp:
 		if v.selected > 0 {
@@ -54,13 +57,30 @@ func (v *ProjectsView) Update(msg tea.KeyMsg) {
 			}
 		case "j":
 			v.selected++
+		case "g":
+			if v.lastKey == "g" {
+				v.selected = 0
+			} else {
+				v.lastKey = "g"
+				return
+			}
+		case "G":
+			if maxIdx >= 0 {
+				v.selected = maxIdx
+			}
 		}
 	}
+	v.lastKey = ""
 }
 
 // FilterActive returns true if the filter input is active.
 func (v *ProjectsView) FilterActive() bool {
 	return v.filter.Active
+}
+
+// Selected returns the current selected index.
+func (v *ProjectsView) Selected() int {
+	return v.selected
 }
 
 // SelectedProject returns the Path of the currently selected project,

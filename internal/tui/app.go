@@ -327,7 +327,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, nil
 				}
 				return a, nil
-			case "j", "k":
+			case "j", "k", "g", "G":
 				switch a.activeTab {
 				case 0:
 					a.analysisView.Update(msg)
